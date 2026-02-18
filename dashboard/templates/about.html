@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block extra_css %}
+<style>
+    .about-section {
+        background: white;
+        border-radius: 15px;
+        padding: 40px;
+        margin-bottom: 20px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .team-member {
+        text-align: center;
+        padding: 20px;
+    }
+
+    .team-member img {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        margin-bottom: 15px;
+    }
+
+    .timeline {
+        position: relative;
+        padding: 20px 0;
+    }
+
+    .timeline-item {
+        padding: 20px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        margin-bottom: 20px;
+        backdrop-filter: blur(10px);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="text-center text-white mb-5">
+    <h1 class="display-4 fw-bold">About Us</h1>
+    <p class="lead">Innovating Aquaculture Through Smart Technology</p>
+</div>
+
+<div class="about-section">
+    <h2 class="mb-4"><i class="bi bi-bullseye"></i> Our Mission</h2>
+    <p class="lead">
+        To empower fish farmers with affordable, reliable IoT monitoring solutions that
+        increase yields, reduce losses, and promote sustainable aquaculture practices.
+    </p>
+</div>
+
+<div class="about-section">
+    <h2 class="mb-4"><i class="bi bi-lightbulb"></i> What We Do</h2>
+    <div class="row">
+        <div class="col-md-4 mb-3">
+            <div class="text-center p-3">
+                <i class="bi bi-thermometer-half display-4 text-primary mb-3"></i>
+                <h5>Real-Time Monitoring</h5>
+                <p>24/7 water quality tracking with instant alerts</p>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="text-center p-3">
+                <i class="bi bi-graph-up-arrow display-4 text-success mb-3"></i>
+                <h5>Data Analytics</h5>
+                <p>Historical trends and predictive insights</p>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="text-center p-3">
+                <i class="bi bi-phone display-4 text-info mb-3"></i>
+                <h5>Mobile Access</h5>
+                <p>Monitor your pond from anywhere, anytime</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="about-section">
+    <h2 class="mb-4"><i class="bi bi-clock-history"></i> Our Story</h2>
+    <div class="timeline">
+        <div class="timeline-item text-white">
+            <h5>Academic Genesis</h5>
+            <p>Conceived as a comprehensive final year project by undergraduate students pursuing a Bachelor of Science
+                in Computer Science (BSCS) at the Department of Computing and Technology, Uganda Christian University
+                (UCU), Mukono.</p>
+        </div>
+        <div class="timeline-item text-white">
+            <h5>Research & Development</h5>
+            <p>Developed with a focus on applying IoT and machine learning technologies to solve real-world challenges
+                in local aquaculture, specifically addressing water quality monitoring and mortality rates.</p>
+        </div>
+        <div class="timeline-item text-white">
+            <h5>Future Vision</h5>
+            <p>Aspirations to scale this student innovation into a fully deployable commercial solution that empowers
+                fish farmers across Uganda with affordable, data-driven decision-making tools.</p>
+        </div>
+    </div>
+</div>
+
+<div class="about-section">
+    <h2 class="mb-4"><i class="bi bi-trophy"></i> Why Choose Us?</h2>
+    <ul class="list-unstyled">
+        <li class="mb-3"><i class="bi bi-check-circle-fill text-success me-2"></i> <strong>Affordable:</strong> Designed
+            for small to medium-scale farmers</li>
+        <li class="mb-3"><i class="bi bi-check-circle-fill text-success me-2"></i> <strong>Reliable:</strong> 99.9%
+            uptime with battery backup</li>
+        <li class="mb-3"><i class="bi bi-check-circle-fill text-success me-2"></i> <strong>Easy to Use:</strong> No
+            technical expertise required</li>
+        <li class="mb-3"><i class="bi bi-check-circle-fill text-success me-2"></i> <strong>Local Support:</strong> You
+            will be trained on usage.</li>
+        <li class="mb-3"><i class="bi bi-check-circle-fill text-success me-2"></i> <strong>Proven Results:</strong> 30%
+            reduction in fish mortality</li>
+    </ul>
+</div>
+
+<div class="about-section text-center">
+    <h2 class="mb-4">Ready to Get Started?</h2>
+    <a href="/contact" class="btn btn-primary btn-lg me-3">
+        <i class="bi bi-telephone"></i> Contact Us
+    </a>
+    <a href="/signup" class="btn btn-success btn-lg">
+        <i class="bi bi-person-plus"></i> Sign Up Free
+    </a>
+</div>
+{% endblock %}

@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="sensor-card">
+            <h3 class="text-center mb-4">Create Farmer Account</h3>
+            {% if error %}
+            <div class="alert alert-danger">{{ error }}</div>
+            {% endif %}
+            <form method="post" id="signup-form">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Username *</label>
+                        <input type="text" name="username" class="form-control" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Email *</label>
+                        <input type="email" name="email" class="form-control" placeholder="example@gmail.com" required>
+                        <small class="text-muted">Use a valid email (e.g., @gmail.com, @outlook.com)</small>
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label">Full Name *</label>
+                        <input type="text" name="full_name" class="form-control" required>
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label">Organization *</label>
+                        <select name="organization_id" class="form-select" required id="org-select">
+                            <option value="">Loading organizations...</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Password *</label>
+                        <input type="password" name="password" class="form-control" minlength="6" required>
+                        <small class="text-muted">Minimum 6 characters</small>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Confirm Password *</label>
+                        <input type="password" name="confirm_password" class="form-control" minlength="6" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-success w-100 mt-3">Create Account</button>
+            </form>
+            <p class="text-center mt-3">
+                Already have an account? <a href="/login">Login here</a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Load organizations for dropdown
+    fetch('/api-proxy/organizations/list')
+        .then(r => r.json())
+        .then(data => {
+            const select = document.getElementById('org-select');
+            if (data.organizations && data.organizations.length > 0) {
+                select.innerHTML = '<option value="">Select your organization</option>' +
+                    data.organizations.map(org =>
+                        `<option value="${org.id}">${org.name}</option>`
+                    ).join('');
+            } else {
+                select.innerHTML = '<option value="">No organizations available</option>';
+            }
+        })
+        .catch(err => {
+            console.error('Error loading organizations:', err);
+        });
+
+    // Form validation
+    document.getElementById('signup-form').addEventListener('submit', (e) => {
+        const password = document.querySelector('[name="password"]').value;
+        const confirm = document.querySelector('[name="confirm_password"]').value;
+
+        if (password !== confirm) {
+            e.preventDefault();
+            alert('Passwords do not match!');
+        }
+    });
+</script>
+{% endblock %}

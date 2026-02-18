@@ -1,0 +1,474 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="text-center text-white mb-4">
+    <h2><i class="bi bi-bell"></i> System Alerts</h2>
+</div>
+
+{% if session.get('user', {}).get('role') == 'admin' %}
+<!-- Admin View: Alert Summary Cards -->
+<div class="row g-4 mb-4" id="alert-summary-cards">
+    <div class="col-12">
+        <div class="text-center py-4">
+            <div class="spinner-border text-white" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="text-white mt-2">Loading alert summary...</p>
+        </div>
+    </div>
+</div>
+
+<div class="sensor-card">
+    <h4><i class="bi bi-list-ul"></i> Detailed Alerts</h4>
+    <div class="mb-3">
+        <label class="form-label">Filter by Device</label>
+        <select id="device-filter" class="form-select">
+            <option value="">All Devices</option>
+        </select>
+    </div>
+    <div id="alerts-list">
+        <p class="text-muted"><i class="bi bi-info-circle"></i> Click on a device card above to view detailed alerts, or
+            use the filter to load all alerts.</p>
+    </div>
+</div>
+
+{% else %}
+<!-- Farmer View: Alerts for Their Devices -->
+<div class="sensor-card mb-4">
+    <h5><i class="bi bi-hdd-network"></i> Select Device</h5>
+    <select id="device-selector" class="form-select">
+        <option value="">Loading devices...</option>
+    </select>
+</div>
+
+<div class="sensor-card">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 id="device-alert-title"><i class="bi bi-bell-fill"></i> Device Alerts</h4>
+        <span class="badge bg-secondary" id="unack-count">Loading...</span>
+    </div>
+    <div id="alerts-list">
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2 text-muted">Checking devices...</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let selectedDeviceId = null;
+    let hasDevices = false;
+
+    {% if session.get('user', {}).get('role') == 'admin' %}
+    // ========== ADMIN VIEW (OPTIMIZED) ==========
+    hasDevices = true; // Admins always have access
+
+    let isLoadingAlerts = false; // Prevent duplicate requests
+    let alertsCache = null;
+    let cacheTimestamp = null;
+    const CACHE_DURATION = 30000; // 30 seconds
+
+    // Load alert summary cards (ASYNC - don't block)
+    function loadAlertSummary() {
+        fetch('/api-proxy/alerts/summary')
+            .then(r => r.json())
+            .then(data => {
+                const container = document.getElementById('alert-summary-cards');
+                const summaries = data.alert_summaries || [];
+
+                if (summaries.length === 0) {
+                    container.innerHTML = `
+                    <div class="col-12">
+                        <div class="alert alert-info text-dark">
+                            <i class="bi bi-info-circle"></i> No alerts in the last 30 days
+                        </div>
+                    </div>
+                `;
+                    // Also clear detailed alerts
+                    document.getElementById('alerts-list').innerHTML =
+                        '<p class="text-muted">No alerts to display</p>';
+                    return;
+                }
+
+                container.innerHTML = summaries.map(s => `
+                <div class="col-md-4">
+                    <div class="sensor-card" style="cursor: pointer;" onclick="filterByDevice(${s.device_id}, '${s.device_name}')">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <h5 class="mb-0">${s.device_name}</h5>
+                            ${s.unacknowledged_count > 0 ?
+                        `<span class="badge bg-danger">${s.unacknowledged_count} new</span>` :
+                        `<span class="badge bg-success">All clear</span>`
+                    }
+                        </div>
+                        <p class="text-muted mb-2"><small>${s.device_code}</small></p>
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <h6>${s.total_alerts}</h6>
+                                <small class="text-muted">Total</small>
+                            </div>
+                            <div class="col-4">
+                                <h6 class="text-danger">${s.critical_count}</h6>
+                                <small class="text-muted">Critical</small>
+                            </div>
+                            <div class="col-4">
+                                <h6 class="text-warning">${s.warning_count}</h6>
+                                <small class="text-muted">Warning</small>
+                            </div>
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            <i class="bi bi-clock"></i> Last: ${s.last_alert_time ? new Date(s.last_alert_time).toLocaleString() : 'N/A'}
+                        </small>
+                    </div>
+                </div>
+            `).join('');
+            })
+            .catch(err => {
+                console.error('Error loading summary:', err);
+                document.getElementById('alert-summary-cards').innerHTML = `
+                <div class="col-12">
+                    <div class="alert alert-danger">Failed to load alert summary</div>
+                </div>
+            `;
+            });
+    }
+
+    // Load device filter options (LAZY - only when needed)
+    function loadDeviceFilter() {
+        const select = document.getElementById('device-filter');
+        if (select.options.length > 1) {
+            return; // Already loaded
+        }
+
+        fetch('/api-proxy/devices')
+            .then(r => r.json())
+            .then(data => {
+                const devices = data.devices || [];
+                select.innerHTML = '<option value="">All Devices</option>' +
+                    devices.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+            })
+            .catch(err => {
+                console.error('Error loading devices:', err);
+            });
+    }
+
+    function filterByDevice(deviceId, deviceName) {
+        selectedDeviceId = deviceId;
+
+        // Update filter dropdown
+        const filterSelect = document.getElementById('device-filter');
+        if (filterSelect.options.length === 1) {
+            loadDeviceFilter(); // Load devices if not already loaded
+        }
+        setTimeout(() => {
+            filterSelect.value = deviceId;
+        }, 100);
+
+        // Clear cache when filtering to specific device
+        alertsCache = null;
+
+        // Load alerts for this device
+        loadAlerts();
+
+        // Scroll to detailed alerts
+        const alertsSection = document.querySelector('.sensor-card h4');
+        if (alertsSection) {
+            alertsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    document.getElementById('device-filter')?.addEventListener('change', (e) => {
+        selectedDeviceId = e.target.value || null;
+        alertsCache = null; // Clear cache when filter changes
+        loadAlerts();
+    });
+
+    // Focus on dropdown when user clicks it (lazy load devices)
+    document.getElementById('device-filter')?.addEventListener('focus', loadDeviceFilter);
+
+    // Initial load - ONLY summary (don't load detailed alerts yet)
+    loadAlertSummary();
+
+    {% else %}
+    // ========== FARMER VIEW ==========
+
+    // First check if user has devices before loading anything
+    function checkDeviceStatusAndLoad() {
+        fetch('/api-proxy/auth/device-status')
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('Device status check failed:', data.error);
+                    return;
+                }
+
+                hasDevices = data.has_devices;
+
+                if (hasDevices) {
+                    // User has devices - load them
+                    loadDevices();
+                } else {
+                    // No devices - show message in alerts list
+                    document.getElementById('alerts-list').innerHTML =
+                        '<div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> No devices configured. Please add a device first.</div>';
+                    document.getElementById('device-selector').innerHTML =
+                        '<option value="">No devices available</option>';
+                    document.getElementById('unack-count').textContent = '0';
+                    document.getElementById('unack-count').className = 'badge bg-secondary';
+                }
+            })
+            .catch(err => {
+                console.error('Error checking device status:', err);
+            });
+    }
+
+    // Load farmer's devices
+    function loadDevices() {
+        fetch('/api-proxy/devices')
+            .then(r => r.json())
+            .then(data => {
+                const select = document.getElementById('device-selector');
+                const devices = data.devices || [];
+
+                if (devices.length === 0) {
+                    select.innerHTML = '<option value="">No devices available</option>';
+                    document.getElementById('alerts-list').innerHTML =
+                        '<div class="alert alert-info">No devices found. Please add a device to view alerts.</div>';
+                    return;
+                }
+
+                select.innerHTML = '<option value="">Select a device</option>' +
+                    devices.map(d => `<option value="${d.id}">${d.name} (${d.device_id})</option>`).join('');
+
+                // Auto-select first device
+                if (devices.length > 0) {
+                    select.value = devices[0].id;
+                    selectedDeviceId = devices[0].id;
+                    loadAlerts();
+                }
+            })
+            .catch(err => {
+                console.error('Error loading devices:', err);
+            });
+    }
+
+    document.getElementById('device-selector')?.addEventListener('change', (e) => {
+        selectedDeviceId = e.target.value;
+        if (selectedDeviceId) {
+            loadAlerts();
+        } else {
+            document.getElementById('alerts-list').innerHTML =
+                '<p class="text-muted">Please select a device to view alerts</p>';
+            document.getElementById('unack-count').textContent = '0';
+            document.getElementById('unack-count').className = 'badge bg-secondary';
+        }
+    });
+
+    // Start by checking device status
+    checkDeviceStatusAndLoad();
+    {% endif %}
+
+    // ========== COMMON: Load Alerts (OPTIMIZED) ==========
+    function loadAlerts() {
+        // Don't load alerts if user has no devices
+        if (!hasDevices && '{{ session.get("user", {}).get("role") }}' !== 'admin') {
+            return;
+        }
+
+        {% if session.get('user', {}).get('role') == 'admin' %}
+        // Prevent duplicate simultaneous requests (admin only)
+        if (isLoadingAlerts) {
+            console.log('Already loading alerts, skipping...');
+            return;
+        }
+
+        // Check cache (only for admin viewing all alerts)
+        const now = Date.now();
+        if (alertsCache && cacheTimestamp && !selectedDeviceId) {
+            if (now - cacheTimestamp < CACHE_DURATION) {
+                console.log('Using cached alerts');
+                displayAlerts(alertsCache);
+                return;
+            }
+        }
+
+        isLoadingAlerts = true;
+        {% endif %}
+
+        const container = document.getElementById('alerts-list');
+
+        // Show loading spinner
+        container.innerHTML = `
+        <div class="text-center py-3">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2 text-muted">Loading alerts...</p>
+        </div>
+    `;
+
+        const endpoint = selectedDeviceId
+            ? `/api-proxy/devices/${selectedDeviceId}/alerts?limit=50`
+            : '/api-proxy/alerts?limit=50';
+
+        fetch(endpoint)
+            .then(r => {
+                if (!r.ok) {
+                    throw new Error(`HTTP ${r.status}`);
+                }
+                return r.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                const alerts = data.alerts || [];
+
+                {% if session.get('user', {}).get('role') == 'admin' %}
+                // Cache results (only for all alerts view)
+                if (!selectedDeviceId) {
+                    alertsCache = alerts;
+                    cacheTimestamp = Date.now();
+                }
+                {% endif %}
+
+                displayAlerts(alerts);
+            })
+            .catch(err => {
+                console.error('Error loading alerts:', err);
+                container.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> Failed to load alerts: ${err.message}
+                </div>
+            `;
+            })
+            .finally(() => {
+                {% if session.get('user', {}).get('role') == 'admin' %}
+                isLoadingAlerts = false;
+                {% endif %}
+            });
+    }
+
+    // Separate display function for reusability
+    function displayAlerts(alerts) {
+        const container = document.getElementById('alerts-list');
+
+        // Update unacknowledged count
+        const unackCount = alerts.filter(a => !a.acknowledged).length;
+        const countBadge = document.getElementById('unack-count');
+        if (countBadge) {
+            countBadge.textContent = `${unackCount} unacknowledged`;
+            countBadge.className = unackCount > 0 ? 'badge bg-danger' : 'badge bg-success';
+        }
+
+        if (alerts.length === 0) {
+            container.innerHTML = `
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> No alerts found
+                ${selectedDeviceId ? ' for this device' : ''}
+            </div>
+        `;
+            return;
+        }
+
+        container.innerHTML = alerts.map(a => `
+        <div class="alert alert-${a.severity === 'CRITICAL' ? 'danger' : 'warning'} mb-2">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="flex-grow-1">
+                    <strong>[${a.severity}]</strong> ${new Date(a.timestamp).toLocaleString()}
+                    <br>${a.message}
+                    ${a.acknowledged ?
+                `<span class="badge bg-success mt-2">
+                            <i class="bi bi-check-circle"></i> Acknowledged
+                            ${a.acknowledged_at ? ' on ' + new Date(a.acknowledged_at).toLocaleString() : ''}
+                        </span>` :
+                `<button class="btn btn-sm btn-success mt-2" onclick="acknowledgeAlert(${a.id})">
+                            <i class="bi bi-check"></i> Acknowledge
+                        </button>`
+            }
+                </div>
+            </div>
+        </div>
+    `).join('');
+    }
+
+    // Acknowledge alert
+    function acknowledgeAlert(alertId) {
+        if (!confirm('Mark this alert as acknowledged?')) {
+            return;
+        }
+
+        fetch(`/api-proxy/alerts/acknowledge/${alertId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                } else {
+                    // Clear cache to force refresh
+                    {% if session.get('user', {}).get('role') == 'admin' %}
+                    alertsCache = null;
+                    {% endif %}
+
+                    loadAlerts();
+                    {% if session.get('user', {}).get('role') == 'admin' %}
+                    loadAlertSummary();
+                    {% endif %}
+                }
+            })
+            .catch(err => alert('Failed to acknowledge: ' + err.message));
+    }
+
+    // Auto-refresh - OPTIMIZED
+    let refreshInterval = null;
+
+    function startAutoRefresh() {
+        // Clear any existing interval
+        if (refreshInterval) {
+            clearInterval(refreshInterval);
+        }
+
+        // Only refresh if user has devices
+        if (!hasDevices) {
+            return;
+        }
+
+        {% if session.get('user', {}).get('role') == 'admin' %}
+        // Admin: Only refresh summary (lighter load)
+        refreshInterval = setInterval(() => {
+            loadAlertSummary();
+            // Only refresh detailed alerts if they're currently viewing them
+            if (selectedDeviceId || alertsCache) {
+                loadAlerts();
+            }
+        }, 60000); // Every 60 seconds (reduced from 30)
+        {% else %}
+        // Farmer: Refresh selected device alerts
+        refreshInterval = setInterval(() => {
+            if (selectedDeviceId) {
+                loadAlerts();
+            }
+        }, 30000);
+        {% endif %}
+    }
+
+    startAutoRefresh();
+
+    // Pause refresh when page is hidden (saves resources)
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        } else {
+            startAutoRefresh();
+        }
+    });
+</script>
+{% endblock %}

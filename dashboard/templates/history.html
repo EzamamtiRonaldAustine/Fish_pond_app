@@ -1,0 +1,933 @@
+{% extends "base.html" %}
+{% block extra_css %}
+<style>
+    .parameter-checkbox {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background 0.2s;
+        margin-bottom: 5px;
+    }
+
+    .parameter-checkbox:hover {
+        background: #f8f9fa;
+    }
+
+    .parameter-checkbox input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        margin-right: 10px;
+        cursor: pointer;
+    }
+
+    .color-indicator {
+        width: 30px;
+        height: 20px;
+        border-radius: 3px;
+        margin-right: 10px;
+        border: 1px solid #ddd;
+    }
+
+    .parameter-label {
+        flex-grow: 1;
+        font-size: 0.9rem;
+    }
+
+    .parameter-unit {
+        font-size: 0.75rem;
+        color: #6c757d;
+        margin-left: 5px;
+    }
+
+    .stats-card {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 10px;
+        border-left: 4px solid;
+    }
+
+    .stats-card h6 {
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+
+    .stats-card .value {
+        font-size: 1.2rem;
+        font-weight: bold;
+    }
+
+    .export-btn {
+        margin-right: 5px;
+        margin-bottom: 5px;
+    }
+
+    .chart-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .view-toggle {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 4px;
+        display: inline-flex;
+        border: 1px solid #dee2e6;
+    }
+
+    .view-toggle button {
+        border: none;
+        background: transparent;
+        padding: 8px 16px;
+        cursor: pointer;
+        border-radius: 6px;
+        transition: all 0.2s;
+        font-weight: 500;
+    }
+
+    .view-toggle button.active {
+        background: white;
+        color: #0d6efd;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .chart-mode-toggle {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 4px;
+        display: inline-flex;
+        margin-left: 10px;
+        border: 1px solid #dee2e6;
+    }
+
+    .chart-mode-toggle button {
+        border: none;
+        background: transparent;
+        padding: 6px 12px;
+        cursor: pointer;
+        border-radius: 6px;
+        transition: all 0.2s;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+    .chart-mode-toggle button.active {
+        background: #0d6efd;
+        color: white;
+        box-shadow: 0 2px 4px rgba(13, 110, 253, 0.3);
+    }
+
+    .data-table {
+        max-height: 500px;
+        overflow-y: auto;
+    }
+
+    #data-table-container {
+        display: none;
+    }
+
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.95);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        border-radius: 15px;
+    }
+
+    .chart-container {
+        position: relative;
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .info-tooltip {
+        cursor: help;
+        color: #6c757d;
+        font-size: 0.85rem;
+        margin-left: 5px;
+    }
+
+    .help-text {
+        font-size: 0.75rem;
+        color: #6c757d;
+        margin-top: 5px;
+        font-style: italic;
+    }
+
+    #historyChart {
+        max-height: 500px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="text-center text-white mb-4">
+    <h2><i class="bi bi-graph-up"></i> Historical Data Analysis</h2>
+</div>
+
+<div class="sensor-card mb-4">
+    <div class="row g-3">
+        <div class="col-md-4">
+            <label><i class="bi bi-hdd-network"></i> Select Device</label>
+            <select id="device-selector" class="form-select">
+                <option value="">Loading devices...</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label><i class="bi bi-calendar-range"></i> Time Period</label>
+            <select id="period" class="form-select">
+                <option value="24h">Last 24 hours</option>
+                <option value="7d">Last 7 days</option>
+                <option value="30d">Last 30 days</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label>
+                <i class="bi bi-speedometer2"></i> Data Points
+                <span class="info-tooltip"
+                    title="Number of readings to display. More points = more detail but slower loading">ℹ️</span>
+            </label>
+            <select id="limit" class="form-select">
+                <option value="50">50 points (Fast)</option>
+                <option value="100" selected>100 points (Balanced)</option>
+                <option value="200">200 points (Detailed)</option>
+                <option value="500">500 points (Maximum Detail)</option>
+            </select>
+            <small class="help-text">Higher values show more detail but load slower</small>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-3">
+        <div class="sensor-card">
+            <h5 class="mb-3"><i class="bi bi-sliders"></i> Parameters</h5>
+            <small class="text-muted d-block mb-3">Select up to 5 parameters</small>
+
+            <div id="parameter-list">
+                <div class="parameter-checkbox" onclick="toggleParameter('temperature', event)">
+                    <input type="checkbox" id="param-temperature" checked onclick="event.stopPropagation();">
+                    <div class="color-indicator" style="background: #2E86DE;"></div>
+                    <div class="parameter-label">
+                        Temperature
+                        <span class="parameter-unit">(°C)</span>
+                    </div>
+                </div>
+
+                <div class="parameter-checkbox" onclick="toggleParameter('ph', event)">
+                    <input type="checkbox" id="param-ph" checked onclick="event.stopPropagation();">
+                    <div class="color-indicator" style="background: #10AC84;"></div>
+                    <div class="parameter-label">
+                        pH Level
+                    </div>
+                </div>
+
+                <div class="parameter-checkbox" onclick="toggleParameter('ec', event)">
+                    <input type="checkbox" id="param-ec" onclick="event.stopPropagation();">
+                    <div class="color-indicator" style="background: #EE5A6F;"></div>
+                    <div class="parameter-label">
+                        Electrical Conductivity
+                        <span class="parameter-unit">(μS/cm)</span>
+                    </div>
+                </div>
+
+                <div class="parameter-checkbox" onclick="toggleParameter('nitrogen', event)">
+                    <input type="checkbox" id="param-nitrogen" onclick="event.stopPropagation();">
+                    <div class="color-indicator" style="background: #F79F1F;"></div>
+                    <div class="parameter-label">
+                        Nitrogen
+                        <span class="parameter-unit">(mg/kg)</span>
+                    </div>
+                </div>
+
+                <div class="parameter-checkbox" onclick="toggleParameter('phosphorus', event)">
+                    <input type="checkbox" id="param-phosphorus" onclick="event.stopPropagation();">
+                    <div class="color-indicator" style="background: #A55EEA;"></div>
+                    <div class="parameter-label">
+                        Phosphorus
+                        <span class="parameter-unit">(mg/kg)</span>
+                    </div>
+                </div>
+            </div>
+
+            <button id="load-history" class="btn btn-primary w-100 mt-3">
+                <i class="bi bi-arrow-clockwise"></i> Load Data
+            </button>
+
+            <div class="row g-2 mt-2">
+                <div class="col-6">
+                    <button id="select-all" class="btn btn-outline-primary btn-sm w-100">
+                        <i class="bi bi-check-all"></i> All
+                    </button>
+                </div>
+                <div class="col-6">
+                    <button id="clear-selection" class="btn btn-outline-secondary btn-sm w-100">
+                        <i class="bi bi-x-circle"></i> Clear
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="sensor-card mt-3" id="stats-container" style="display: none;">
+            <h6 class="mb-3"><i class="bi bi-bar-chart"></i> Statistics</h6>
+            <div id="stats-content"></div>
+        </div>
+    </div>
+
+    <div class="col-md-9">
+        <div class="sensor-card">
+            <div class="chart-actions">
+                <div style="display: flex; align-items: center;">
+                    <div class="view-toggle">
+                        <button id="chart-view-btn" class="active" onclick="switchView('chart')">
+                            <i class="bi bi-graph-up"></i> Chart
+                        </button>
+                        <button id="table-view-btn" onclick="switchView('table')">
+                            <i class="bi bi-table"></i> Table
+                        </button>
+                    </div>
+
+                    <div class="chart-mode-toggle" id="chart-mode-toggle" style="display: none;">
+                        <button id="dual-axis-mode-btn" class="active" onclick="setChartMode('dual')"
+                            title="Separate Y-axes for better visibility">
+                            Smart Scale
+                        </button>
+                        <button id="overlay-mode-btn" onclick="setChartMode('overlay')" title="Same scale for all">
+                            Single Scale
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <button class="btn btn-sm btn-outline-primary export-btn" onclick="exportChart('png')">
+                        <i class="bi bi-image"></i> PNG
+                    </button>
+                    <button class="btn btn-sm btn-outline-success export-btn" onclick="exportData('csv')">
+                        <i class="bi bi-filetype-csv"></i> CSV
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger export-btn" onclick="exportData('pdf')">
+                        <i class="bi bi-filetype-pdf"></i> PDF
+                    </button>
+                </div>
+            </div>
+
+            <div id="chart-view-container" class="chart-container">
+                <canvas id="historyChart"></canvas>
+                <div id="loading-overlay" class="loading-overlay" style="display: none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3 text-muted">Loading data...</p>
+                    <small id="loading-progress" class="text-muted"></small>
+                </div>
+            </div>
+
+            <div id="data-table-container" class="data-table">
+                <table class="table table-striped table-hover table-sm" id="data-table">
+                    <thead class="table-light sticky-top">
+                        <tr id="table-header"></tr>
+                    </thead>
+                    <tbody id="table-body"></tbody>
+                </table>
+            </div>
+
+            <div id="no-data-message" style="display: none;">
+                <div class="alert alert-info text-center">
+                    <i class="bi bi-info-circle"></i> Select a device and parameters, then click "Load Data"
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script>
+    let historyChart = null;
+    let selectedDeviceId = null;
+    let currentData = {};
+    let selectedParameters = ['temperature', 'ph'];
+    let chartMode = 'dual';
+
+    const PARAMETER_CONFIG = {
+        temperature: {
+            label: 'Temperature',
+            color: '#2E86DE',
+            unit: '°C',
+            yAxisID: 'y-temp',
+            lineWidth: 3
+        },
+        ph: {
+            label: 'pH Level',
+            color: '#10AC84',
+            unit: '',
+            yAxisID: 'y-ph',
+            lineWidth: 3
+        },
+        ec: {
+            label: 'EC',
+            color: '#EE5A6F',
+            unit: 'μS/cm',
+            yAxisID: 'y-ec',
+            lineWidth: 3
+        },
+        nitrogen: {
+            label: 'Nitrogen',
+            color: '#F79F1F',
+            unit: 'mg/kg',
+            yAxisID: 'y-nutrients',
+            lineWidth: 3
+        },
+        phosphorus: {
+            label: 'Phosphorus',
+            color: '#A55EEA',
+            unit: 'mg/kg',
+            yAxisID: 'y-nutrients',
+            lineWidth: 3
+        }
+    };
+
+    function loadDevices() {
+        fetch('/api-proxy/devices')
+            .then(r => r.json())
+            .then(data => {
+                const select = document.getElementById('device-selector');
+                const devices = data.devices || [];
+
+                if (devices.length === 0) {
+                    select.innerHTML = '<option value="">No devices available</option>';
+                    showNoDataMessage('No devices found. Please add a device first.');
+                    return;
+                }
+
+                select.innerHTML = '<option value="">Select a device</option>' +
+                    devices.map(d => '<option value="' + d.id + '">' + d.name + ' (' + d.device_id + ')</option>').join('');
+
+                if (devices.length > 0) {
+                    select.value = devices[0].id;
+                    selectedDeviceId = devices[0].id;
+                }
+            })
+            .catch(err => console.error('Error loading devices:', err));
+    }
+
+    function toggleParameter(param, event) {
+        if (event) event.stopPropagation();
+        const checkbox = document.getElementById('param-' + param);
+
+        if (checkbox.checked && selectedParameters.length === 1) {
+            alert('At least one parameter must be selected');
+            return;
+        }
+
+        checkbox.checked = !checkbox.checked;
+
+        if (checkbox.checked) {
+            if (!selectedParameters.includes(param)) {
+                selectedParameters.push(param);
+            }
+        } else {
+            selectedParameters = selectedParameters.filter(p => p !== param);
+        }
+    }
+
+    function clearSelection() {
+        if (selectedParameters.length === 0) return;
+        selectedParameters = ['temperature'];
+        Object.keys(PARAMETER_CONFIG).forEach(param => {
+            document.getElementById('param-' + param).checked = (param === 'temperature');
+        });
+    }
+
+    function selectAll() {
+        selectedParameters = Object.keys(PARAMETER_CONFIG);
+        Object.keys(PARAMETER_CONFIG).forEach(param => {
+            document.getElementById('param-' + param).checked = true;
+        });
+    }
+
+    function setChartMode(mode) {
+        chartMode = mode;
+        document.getElementById('overlay-mode-btn').classList.toggle('active', mode === 'overlay');
+        document.getElementById('dual-axis-mode-btn').classList.toggle('active', mode === 'dual');
+
+        if (Object.keys(currentData).length > 0) {
+            renderChart();
+        }
+    }
+
+    document.getElementById('device-selector').addEventListener('change', function (e) {
+        selectedDeviceId = e.target.value;
+    });
+
+    document.getElementById('load-history').addEventListener('click', loadHistory);
+    document.getElementById('clear-selection').addEventListener('click', clearSelection);
+    document.getElementById('select-all').addEventListener('click', selectAll);
+
+    async function loadHistory() {
+        if (!selectedDeviceId) {
+            alert('Please select a device first');
+            return;
+        }
+
+        if (selectedParameters.length === 0) {
+            alert('Please select at least one parameter');
+            return;
+        }
+
+        const period = document.getElementById('period').value;
+        const limit = document.getElementById('limit').value;
+
+        showLoading(true);
+        hideNoDataMessage();
+        currentData = {};
+
+        try {
+            const promises = selectedParameters.map(function (param, index) {
+                updateLoadingProgress('Loading ' + PARAMETER_CONFIG[param].label + '... (' + (index + 1) + '/' + selectedParameters.length + ')');
+                return fetch('/api-proxy/devices/' + selectedDeviceId + '/historical/' + param + '?period=' + period + '&limit=' + limit)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.error) throw new Error(data.error);
+                        currentData[param] = data;
+                        return data;
+                    });
+            });
+
+            await Promise.all(promises);
+
+            document.getElementById('chart-mode-toggle').style.display = 'inline-flex';
+
+            renderChart();
+            updateStatistics();
+            updateDataTable();
+
+        } catch (error) {
+            console.error('Error loading data:', error);
+            showNoDataMessage('Failed to load data: ' + error.message);
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    function renderChart() {
+        const ctx = document.getElementById('historyChart').getContext('2d');
+        if (historyChart) historyChart.destroy();
+
+        const allTimestamps = new Set();
+        Object.values(currentData).forEach(function (paramData) {
+            paramData.data.forEach(function (point) {
+                allTimestamps.add(point.timestamp);
+            });
+        });
+
+        const sortedTimestamps = Array.from(allTimestamps).sort();
+        const labels = sortedTimestamps.map(function (ts) {
+            const date = new Date(ts);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        });
+
+        const datasets = selectedParameters.map(function (param) {
+            const config = PARAMETER_CONFIG[param];
+            const paramData = currentData[param];
+
+            const dataPoints = sortedTimestamps.map(function (ts) {
+                const point = paramData.data.find(function (p) {
+                    return p.timestamp === ts;
+                });
+                return point ? parseFloat(point.value) : null;
+            });
+
+            return {
+                label: config.label + (config.unit ? ' (' + config.unit + ')' : ''),
+                data: dataPoints,
+                borderColor: config.color,
+                backgroundColor: config.color + '15',
+                tension: 0.4,
+                fill: true,
+                spanGaps: true,
+                pointRadius: 4,
+                pointHoverRadius: 7,
+                pointBackgroundColor: config.color,
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointHoverBackgroundColor: config.color,
+                pointHoverBorderColor: '#fff',
+                borderWidth: config.lineWidth,
+                yAxisID: chartMode === 'dual' ? config.yAxisID : 'y',
+                cubicInterpolationMode: 'monotone'
+            };
+        });
+
+        const scales = {
+            x: {
+                display: true,
+                grid: {
+                    display: true,
+                    color: 'rgba(0, 0, 0, 0.05)',
+                    drawBorder: false
+                },
+                ticks: {
+                    maxRotation: 45,
+                    minRotation: 45,
+                    font: { size: 10 },
+                    color: '#666'
+                }
+            }
+        };
+
+        if (chartMode === 'overlay') {
+            scales.y = {
+                display: true,
+                position: 'left',
+                grid: {
+                    display: true,
+                    color: 'rgba(0, 0, 0, 0.05)',
+                    drawBorder: false
+                },
+                ticks: {
+                    font: { size: 11 },
+                    color: '#666',
+                    padding: 8
+                }
+            };
+        } else if (chartMode === 'dual') {
+            const hasTemp = selectedParameters.includes('temperature');
+            const hasPh = selectedParameters.includes('ph');
+            const hasEC = selectedParameters.includes('ec');
+            const hasNutrients = selectedParameters.includes('nitrogen') || selectedParameters.includes('phosphorus');
+
+            let rightAxisCount = 0;
+
+            if (hasTemp || hasNutrients) {
+                scales['y-temp'] = {
+                    type: 'linear',
+                    display: hasTemp,
+                    position: 'left',
+                    grid: {
+                        display: true,
+                        color: 'rgba(0, 0, 0, 0.05)',
+                        drawBorder: false
+                    },
+                    ticks: {
+                        font: { size: 11 },
+                        color: '#2E86DE',
+                        padding: 8
+                    },
+                    title: {
+                        display: hasTemp,
+                        text: 'Temperature (°C)',
+                        color: '#2E86DE',
+                        font: { size: 12, weight: 'bold' }
+                    }
+                };
+
+                scales['y-nutrients'] = scales['y-temp'];
+            }
+
+            if (hasPh) {
+                scales['y-ph'] = {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    grid: { display: false, drawBorder: false },
+                    ticks: {
+                        font: { size: 11 },
+                        color: '#10AC84',
+                        padding: 8
+                    },
+                    title: {
+                        display: true,
+                        text: 'pH Level',
+                        color: '#10AC84',
+                        font: { size: 12, weight: 'bold' }
+                    }
+                };
+                rightAxisCount++;
+            }
+
+            if (hasEC) {
+                scales['y-ec'] = {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    grid: { display: false, drawBorder: false },
+                    ticks: {
+                        font: { size: 11 },
+                        color: '#EE5A6F',
+                        padding: 8
+                    },
+                    title: {
+                        display: true,
+                        text: 'EC (μS/cm)',
+                        color: '#EE5A6F',
+                        font: { size: 12, weight: 'bold' }
+                    }
+                };
+            }
+        }
+
+        historyChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Historical Data - ' + document.getElementById('period').options[document.getElementById('period').selectedIndex].text,
+                        font: { size: 16, weight: 'bold' },
+                        padding: { top: 10, bottom: 20 },
+                        color: '#333'
+                    },
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            padding: 15,
+                            font: { size: 12 },
+                            usePointStyle: true,
+                            pointStyle: 'circle'
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleFont: { size: 13 },
+                        bodyFont: { size: 12 },
+                        padding: 12,
+                        displayColors: true,
+                        callbacks: {
+                            label: function (context) {
+                                let label = context.dataset.label || '';
+                                if (context.parsed.y !== null) {
+                                    label += ': ' + context.parsed.y.toFixed(2);
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                scales: scales
+            }
+        });
+
+        document.getElementById('historyChart').style.height = '500px';
+    }
+
+    function updateStatistics() {
+        const statsContainer = document.getElementById('stats-content');
+        let html = '';
+
+        selectedParameters.forEach(function (param) {
+            const config = PARAMETER_CONFIG[param];
+            const data = currentData[param].data.map(function (p) {
+                return parseFloat(p.value);
+            });
+
+            const min = Math.min.apply(Math, data).toFixed(2);
+            const max = Math.max.apply(Math, data).toFixed(2);
+            const avg = (data.reduce(function (a, b) { return a + b; }, 0) / data.length).toFixed(2);
+
+            html += '<div class="stats-card" style="border-left-color: ' + config.color + '">' +
+                '<h6 style="color: ' + config.color + '">' + config.label + '</h6>' +
+                '<div class="row text-center">' +
+                '<div class="col-4"><small class="text-muted">Min</small><div class="value">' + min + '</div></div>' +
+                '<div class="col-4"><small class="text-muted">Avg</small><div class="value">' + avg + '</div></div>' +
+                '<div class="col-4"><small class="text-muted">Max</small><div class="value">' + max + '</div></div>' +
+                '</div></div>';
+        });
+
+        statsContainer.innerHTML = html;
+        document.getElementById('stats-container').style.display = 'block';
+    }
+
+    function updateDataTable() {
+        const allTimestamps = new Set();
+        Object.values(currentData).forEach(function (paramData) {
+            paramData.data.forEach(function (point) {
+                allTimestamps.add(point.timestamp);
+            });
+        });
+
+        const sortedTimestamps = Array.from(allTimestamps).sort().reverse();
+
+        const header = document.getElementById('table-header');
+        header.innerHTML = '<th>Timestamp</th>' +
+            selectedParameters.map(function (param) {
+                return '<th>' + PARAMETER_CONFIG[param].label + '</th>';
+            }).join('');
+
+        const tbody = document.getElementById('table-body');
+        tbody.innerHTML = sortedTimestamps.map(function (ts) {
+            const values = selectedParameters.map(function (param) {
+                const point = currentData[param].data.find(function (p) {
+                    return p.timestamp === ts;
+                });
+                return point ? parseFloat(point.value).toFixed(2) : '--';
+            });
+
+            return '<tr><td>' + new Date(ts).toLocaleString() + '</td>' +
+                values.map(function (v) { return '<td>' + v + '</td>'; }).join('') +
+                '</tr>';
+        }).join('');
+    }
+
+    function switchView(view) {
+        if (view === 'chart') {
+            document.getElementById('chart-view-container').style.display = 'block';
+            document.getElementById('data-table-container').style.display = 'none';
+            document.getElementById('chart-view-btn').classList.add('active');
+            document.getElementById('table-view-btn').classList.remove('active');
+            document.getElementById('chart-mode-toggle').style.display = 'inline-flex';
+        } else {
+            document.getElementById('chart-view-container').style.display = 'none';
+            document.getElementById('data-table-container').style.display = 'block';
+            document.getElementById('chart-view-btn').classList.remove('active');
+            document.getElementById('table-view-btn').classList.add('active');
+            document.getElementById('chart-mode-toggle').style.display = 'none';
+        }
+    }
+
+    function exportChart(format) {
+        if (!historyChart) {
+            alert('Please load data first');
+            return;
+        }
+
+        const canvas = document.getElementById('historyChart');
+        const link = document.createElement('a');
+        link.download = 'pond-history-' + new Date().toISOString().split('T')[0] + '.' + format;
+        link.href = canvas.toDataURL('image/' + format);
+        link.click();
+    }
+
+    function exportData(format) {
+        if (Object.keys(currentData).length === 0) {
+            alert('Please load data first');
+            return;
+        }
+
+        if (format === 'csv') {
+            exportCSV();
+        } else if (format === 'pdf') {
+            exportPDF();
+        }
+    }
+
+    function exportCSV() {
+        const allTimestamps = new Set();
+        Object.values(currentData).forEach(function (paramData) {
+            paramData.data.forEach(function (point) {
+                allTimestamps.add(point.timestamp);
+            });
+        });
+
+        const sortedTimestamps = Array.from(allTimestamps).sort();
+
+        let csv = 'Timestamp,' + selectedParameters.map(function (p) {
+            return PARAMETER_CONFIG[p].label;
+        }).join(',') + '\\n';
+
+        sortedTimestamps.forEach(function (ts) {
+            const values = selectedParameters.map(function (param) {
+                const point = currentData[param].data.find(function (p) {
+                    return p.timestamp === ts;
+                });
+                return point ? point.value : '';
+            });
+
+            csv += new Date(ts).toISOString() + ',' + values.join(',') + '\\n';
+        });
+
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'pond-data-' + new Date().toISOString().split('T')[0] + '.csv';
+        link.click();
+    }
+
+    async function exportPDF() {
+        const jsPDF = window.jspdf.jsPDF;
+        const pdf = new jsPDF('l', 'mm', 'a4');
+
+        pdf.setFontSize(16);
+        pdf.text('Fish Pond Historical Data Report', 20, 20);
+
+        pdf.setFontSize(10);
+        pdf.text('Generated: ' + new Date().toLocaleString(), 20, 28);
+        pdf.text('Period: ' + document.getElementById('period').options[document.getElementById('period').selectedIndex].text, 20, 34);
+
+        const canvas = document.getElementById('historyChart');
+        const imgData = canvas.toDataURL('image/png');
+        pdf.addImage(imgData, 'PNG', 20, 45, 250, 120);
+
+        let yPos = 175;
+        pdf.setFontSize(12);
+        pdf.text('Statistics Summary:', 20, yPos);
+        yPos += 8;
+
+        pdf.setFontSize(9);
+        selectedParameters.forEach(function (param) {
+            const config = PARAMETER_CONFIG[param];
+            const data = currentData[param].data.map(function (p) {
+                return parseFloat(p.value);
+            });
+            const min = Math.min.apply(Math, data).toFixed(2);
+            const max = Math.max.apply(Math, data).toFixed(2);
+            const avg = (data.reduce(function (a, b) { return a + b; }, 0) / data.length).toFixed(2);
+
+            pdf.text(config.label + ': Min=' + min + ', Avg=' + avg + ', Max=' + max, 25, yPos);
+            yPos += 6;
+        });
+
+        pdf.save('pond-report-' + new Date().toISOString().split('T')[0] + '.pdf');
+    }
+
+    function showLoading(show) {
+        document.getElementById('loading-overlay').style.display = show ? 'flex' : 'none';
+    }
+
+    function updateLoadingProgress(message) {
+        document.getElementById('loading-progress').textContent = message;
+    }
+
+    function showNoDataMessage(message) {
+        const container = document.getElementById('no-data-message');
+        container.innerHTML = '<div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> ' + message + '</div>';
+        container.style.display = 'block';
+    }
+
+    function hideNoDataMessage() {
+        document.getElementById('no-data-message').style.display = 'none';
+    }
+
+    loadDevices();
+</script>
+{% endblock %}

@@ -1,0 +1,53 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.env
+.venv
+env/
+venv/
+*.db
+.DS_Store
+
+# .gitignore — put this in your project root
+
+# CRITICAL: Never commit these
+.env
+*.pem
+*.key
+*.crt
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Database
+*.sql.bak
+
+# ML Models (can be large binary files)
+ml/models/*.pkl
+ml/models/*.h5
+ml/data/*.csv
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Testing
+.coverage
+htmlcov/

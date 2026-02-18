@@ -1,0 +1,6 @@
+ALTER TABLE users ADD COLUMN organization_id INTEGER;
+
+CREATE TABLE organizations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL
+);

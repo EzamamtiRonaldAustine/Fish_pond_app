@@ -1,0 +1,606 @@
+{% extends "base.html" %}
+{% block extra_css %}
+<style>
+    .trends-chart-container {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        position: relative;
+    }
+
+    .chart-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .chart-mode-selector {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 4px;
+        display: inline-flex;
+        border: 1px solid #dee2e6;
+    }
+
+    .chart-mode-selector button {
+        border: none;
+        background: transparent;
+        padding: 6px 12px;
+        cursor: pointer;
+        border-radius: 6px;
+        transition: all 0.2s;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+    .chart-mode-selector button.active {
+        background: #0d6efd;
+        color: white;
+        box-shadow: 0 2px 4px rgba(13, 110, 253, 0.3);
+    }
+
+    .time-range-selector {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 4px;
+        display: inline-flex;
+        border: 1px solid #dee2e6;
+    }
+
+    .time-range-selector button {
+        border: none;
+        background: transparent;
+        padding: 6px 12px;
+        cursor: pointer;
+        border-radius: 6px;
+        transition: all 0.2s;
+        font-size: 0.85rem;
+    }
+
+    .time-range-selector button.active {
+        background: white;
+        color: #0d6efd;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    #trendsChart {
+        max-height: 400px;
+    }
+
+    .loading-chart {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 10;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="text-center text-white mb-4">
+    <h2><i class="bi bi-speedometer2"></i> Live Monitoring Dashboard</h2>
+</div>
+
+<!-- Device Selector -->
+<div class="device-selector">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="mb-0"><i class="bi bi-hdd-network"></i> Select Device</h6>
+        <span class="badge bg-primary" id="device-count">0 devices</span>
+    </div>
+    <div id="device-list">
+        <p class="text-muted">Loading devices...</p>
+    </div>
+</div>
+
+<div id="api-error-container"></div>
+
+<div class="sensor-card mb-3">
+    <div class="d-flex justify-content-between align-items-center">
+        <h5 class="mb-0" id="selected-device-name">Select a device</h5>
+        <small class="text-muted">Last updated: <span id="last-update">--</span></small>
+    </div>
+</div>
+
+<div class="sensor-card">
+    <div class="row text-center">
+        <div class="col-md-4">
+            <h5>Overall Status</h5>
+            <h2 id="overall-status">Loading...</h2>
+        </div>
+        <div class="col-md-4">
+            <h5>Quality Score</h5>
+            <h2 id="quality-score">--</h2>
+        </div>
+        <div class="col-md-4">
+            <h5>Data Points (24h)</h5>
+            <h2 id="data-count">--</h2>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="sensor-card text-center">
+            <div class="sensor-label">Temperature</div>
+            <div class="sensor-value text-primary" id="temp-value">--</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="sensor-card text-center">
+            <div class="sensor-label">pH Level</div>
+            <div class="sensor-value text-success" id="ph-value">--</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="sensor-card text-center">
+            <div class="sensor-label">EC (μS/cm)</div>
+            <div class="sensor-value text-info" id="ec-value">--</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="sensor-card text-center">
+            <div class="sensor-label">Nitrogen (mg/kg)</div>
+            <div class="sensor-value text-warning" id="nitrogen-value">--</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="sensor-card text-center">
+            <div class="sensor-label">Phosphorus (mg/kg)</div>
+            <div class="sensor-value text-danger" id="phosphorus-value">--</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="sensor-card text-center">
+            <div class="sensor-label">Turbidity</div>
+            <div class="sensor-value text-secondary" id="turbidity-value">--</div>
+        </div>
+    </div>
+</div>
+
+<!-- IMPROVED TRENDS CHART -->
+<div class="trends-chart-container">
+    <div class="chart-controls">
+        <div>
+            <h4 style="margin: 0;"><i class="bi bi-graph-up"></i> Recent Trends</h4>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <div class="time-range-selector">
+                <button class="active" onclick="changeTimeRange('6h', this)">6h</button>
+                <button onclick="changeTimeRange('24h', this)">24h</button>
+                <button onclick="changeTimeRange('7d', this)">7d</button>
+            </div>
+            <div class="chart-mode-selector">
+                <button class="active" id="dual-mode-btn" onclick="setDashboardChartMode('dual')"
+                    title="Separate Y-axes">
+                    Smart Scale
+                </button>
+                <button id="overlay-mode-btn" onclick="setDashboardChartMode('overlay')" title="Same scale">
+                    Single Scale
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="chart-loading" class="loading-chart" style="display: none;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <canvas id="trendsChart"></canvas>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let currentDeviceId = null;
+    let trendsChart = null;
+    let chartMode = 'dual';
+    let currentTimeRange = '6h';
+
+    function showError(message) {
+        const container = document.getElementById('api-error-container');
+        container.innerHTML = '<div class="alert-error"><strong>Error:</strong> ' + message + '</div>';
+
+        if (message.includes('Authentication required') || message.includes('Please login')) {
+            setTimeout(function () {
+                window.location.href = '/login';
+            }, 2000);
+        }
+    }
+
+    function clearError() {
+        document.getElementById('api-error-container').innerHTML = '';
+    }
+
+    function safeNumber(value, decimals, suffix) {
+        decimals = decimals || 1;
+        suffix = suffix || '';
+        if (value === null || value === undefined || value === '') return '--';
+        const num = parseFloat(value);
+        if (isNaN(num)) return '--';
+        return num.toFixed(decimals) + suffix;
+    }
+
+    function loadDevices() {
+        fetch('/api-proxy/devices')
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.error) {
+                    document.getElementById('device-list').innerHTML =
+                        '<p class="text-danger">Error: ' + data.error + '</p>';
+
+                    if (data.auth_required) {
+                        showError(data.error);
+                    }
+                    return;
+                }
+
+                clearError();
+                const devices = data.devices || [];
+                document.getElementById('device-count').textContent =
+                    devices.length + ' device' + (devices.length !== 1 ? 's' : '');
+
+                if (devices.length === 0) {
+                    document.getElementById('device-list').innerHTML =
+                        '<p class="text-muted">No devices found</p>';
+                    return;
+                }
+
+                document.getElementById('device-list').innerHTML = devices.map(function (d) {
+                    const isActive = currentDeviceId === d.id ? 'active' : '';
+                    const deviceStatus = d.status || 'inactive';
+                    const deviceId = d.device_id || '';
+                    const deviceName = d.name || 'Unnamed Device';
+
+                    return '<div class="device-item ' + isActive + '" ' +
+                        'data-device-id="' + d.id + '" ' +
+                        'data-device-name="' + deviceName.replace(/"/g, '&quot;') + '" ' +
+                        'onclick="selectDeviceFromElement(this)">' +
+                        '<span class="device-status-indicator device-status-' + deviceStatus + '"></span>' +
+                        '<strong>' + deviceName + '</strong>' +
+                        '<small class="text-muted d-block">' + deviceId + '</small>' +
+                        '</div>';
+                }).join('');
+
+                if (!currentDeviceId && devices.length > 0) {
+                    selectDevice(devices[0].id, devices[0].name);
+                }
+            })
+            .catch(function (err) {
+                console.error('Error loading devices:', err);
+                showError('Failed to load devices: ' + err.message);
+            });
+    }
+
+    function selectDeviceFromElement(element) {
+        const deviceId = parseInt(element.getAttribute('data-device-id'));
+        const deviceName = element.getAttribute('data-device-name');
+        selectDevice(deviceId, deviceName);
+    }
+
+    function selectDevice(deviceId, deviceName) {
+        currentDeviceId = deviceId;
+        document.getElementById('selected-device-name').textContent = deviceName || 'Device';
+        loadDevices();
+        updateDashboard();
+        loadChart();
+    }
+
+    function updateDashboard() {
+        if (!currentDeviceId) return;
+
+        fetch('/api-proxy/devices/' + currentDeviceId + '/current-readings')
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.error) {
+                    showError(data.error);
+                    return;
+                }
+
+                clearError();
+
+                const timestamp = data.timestamp ? new Date(data.timestamp).toLocaleString() : '--';
+                document.getElementById('last-update').textContent = timestamp;
+
+                const status = data.status || 'UNKNOWN';
+                const statusEl = document.getElementById('overall-status');
+                statusEl.innerHTML = '<span class="status-badge status-' + status + '">' + status + '</span>';
+
+                document.getElementById('quality-score').textContent = data.score || '--';
+
+                document.getElementById('temp-value').textContent = safeNumber(data.temperature, 1, '°C');
+                document.getElementById('ph-value').textContent = safeNumber(data.ph, 2);
+                document.getElementById('ec-value').textContent = safeNumber(data.ec, 0);
+                document.getElementById('nitrogen-value').textContent = safeNumber(data.nitrogen, 1);
+                document.getElementById('phosphorus-value').textContent = safeNumber(data.phosphorus, 1);
+
+                const turbidityText = data.turbidity !== null && data.turbidity !== undefined
+                    ? (data.turbidity ? 'TURBID' : 'CLEAR')
+                    : '--';
+                document.getElementById('turbidity-value').textContent = turbidityText;
+            })
+            .catch(function (err) {
+                console.error('Error updating dashboard:', err);
+                showError(err.message);
+            });
+    }
+
+    function changeTimeRange(range, btn) {
+        currentTimeRange = range;
+
+        const buttons = document.querySelectorAll('.time-range-selector button');
+        buttons.forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+
+        loadChart();
+    }
+
+    function setDashboardChartMode(mode) {
+        chartMode = mode;
+        document.getElementById('overlay-mode-btn').classList.toggle('active', mode === 'overlay');
+        document.getElementById('dual-mode-btn').classList.toggle('active', mode === 'dual');
+
+        if (trendsChart) {
+            loadChart();
+        }
+    }
+
+    function loadChart() {
+        if (!currentDeviceId) return;
+
+        document.getElementById('chart-loading').style.display = 'block';
+
+        const limits = { '6h': 30, '24h': 50, '7d': 100 };
+        const limit = limits[currentTimeRange] || 50;
+
+        Promise.all([
+            fetch('/api-proxy/devices/' + currentDeviceId + '/historical/temperature?period=' + currentTimeRange + '&limit=' + limit).then(function (r) { return r.json(); }),
+            fetch('/api-proxy/devices/' + currentDeviceId + '/historical/ph?period=' + currentTimeRange + '&limit=' + limit).then(function (r) { return r.json(); }),
+            fetch('/api-proxy/devices/' + currentDeviceId + '/historical/ec?period=' + currentTimeRange + '&limit=' + limit).then(function (r) { return r.json(); })
+        ]).then(function (results) {
+            const tempData = results[0];
+            const phData = results[1];
+            const ecData = results[2];
+
+            document.getElementById('chart-loading').style.display = 'none';
+
+            if (tempData.error || phData.error) {
+                console.error('Chart data error:', tempData.error || phData.error);
+                return;
+            }
+
+            const tempPoints = tempData.data || [];
+            const phPoints = phData.data || [];
+            const ecPoints = ecData.data || [];
+
+            document.getElementById('data-count').textContent = tempPoints.length;
+
+            const labels = tempPoints.map(function (p) {
+                const date = new Date(p.timestamp);
+                if (currentTimeRange === '6h' || currentTimeRange === '24h') {
+                    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                } else {
+                    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                }
+            });
+
+            const temps = tempPoints.map(function (p) { return parseFloat(p.value) || 0; });
+            const phs = phPoints.map(function (p) { return parseFloat(p.value) || 0; });
+            const ecs = ecPoints.map(function (p) { return parseFloat(p.value) || 0; });
+
+            const ctx = document.getElementById('trendsChart').getContext('2d');
+            if (trendsChart) trendsChart.destroy();
+
+            const datasets = [
+                {
+                    label: 'Temperature (C)',
+                    data: temps,
+                    borderColor: '#2E86DE',
+                    backgroundColor: '#2E86DE15',
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#2E86DE',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    borderWidth: 3,
+                    yAxisID: chartMode === 'dual' ? 'y-temp' : 'y',
+                    cubicInterpolationMode: 'monotone'
+                },
+                {
+                    label: 'pH Level',
+                    data: phs,
+                    borderColor: '#10AC84',
+                    backgroundColor: '#10AC8415',
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#10AC84',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    borderWidth: 3,
+                    yAxisID: chartMode === 'dual' ? 'y-ph' : 'y',
+                    cubicInterpolationMode: 'monotone'
+                },
+                {
+                    label: 'EC (uS/cm)',
+                    data: ecs,
+                    borderColor: '#EE5A6F',
+                    backgroundColor: '#EE5A6F15',
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#EE5A6F',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    borderWidth: 3,
+                    yAxisID: chartMode === 'dual' ? 'y-ec' : 'y',
+                    cubicInterpolationMode: 'monotone'
+                }
+            ];
+
+            const scales = {
+                x: {
+                    display: true,
+                    grid: {
+                        display: true,
+                        color: 'rgba(0, 0, 0, 0.05)',
+                        drawBorder: false
+                    },
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 45,
+                        font: { size: 10 },
+                        color: '#666'
+                    }
+                }
+            };
+
+            if (chartMode === 'overlay') {
+                scales.y = {
+                    display: true,
+                    position: 'left',
+                    grid: {
+                        display: true,
+                        color: 'rgba(0, 0, 0, 0.05)',
+                        drawBorder: false
+                    },
+                    ticks: {
+                        font: { size: 11 },
+                        color: '#666'
+                    }
+                };
+            } else {
+                scales['y-temp'] = {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    grid: {
+                        display: true,
+                        color: 'rgba(0, 0, 0, 0.05)',
+                        drawBorder: false
+                    },
+                    ticks: {
+                        font: { size: 11 },
+                        color: '#2E86DE'
+                    },
+                    title: {
+                        display: true,
+                        text: 'Temperature (C)',
+                        color: '#2E86DE',
+                        font: { size: 12, weight: 'bold' }
+                    }
+                };
+
+                scales['y-ph'] = {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    grid: { display: false, drawBorder: false },
+                    ticks: {
+                        font: { size: 11 },
+                        color: '#10AC84'
+                    },
+                    title: {
+                        display: true,
+                        text: 'pH',
+                        color: '#10AC84',
+                        font: { size: 12, weight: 'bold' }
+                    }
+                };
+
+                scales['y-ec'] = {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    grid: { display: false, drawBorder: false },
+                    ticks: {
+                        font: { size: 11 },
+                        color: '#EE5A6F'
+                    },
+                    title: {
+                        display: true,
+                        text: 'EC (uS/cm)',
+                        color: '#EE5A6F',
+                        font: { size: 12, weight: 'bold' }
+                    }
+                };
+            }
+
+            trendsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        title: {
+                            display: false
+                        },
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                padding: 15,
+                                font: { size: 11 },
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleFont: { size: 12 },
+                            bodyFont: { size: 11 },
+                            padding: 10,
+                            displayColors: true,
+                            callbacks: {
+                                label: function (context) {
+                                    let label = context.dataset.label || '';
+                                    if (context.parsed.y !== null) {
+                                        label += ': ' + context.parsed.y.toFixed(2);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: scales
+                }
+            });
+
+            document.getElementById('trendsChart').style.height = '400px';
+
+        }).catch(function (err) {
+            console.error('Error loading chart:', err);
+            document.getElementById('chart-loading').style.display = 'none';
+        });
+    }
+
+    loadDevices();
+    setInterval(function () {
+        if (currentDeviceId) updateDashboard();
+    }, 10000);
+    setInterval(function () {
+        if (currentDeviceId) loadChart();
+    }, 60000);
+</script>
+{% endblock %}

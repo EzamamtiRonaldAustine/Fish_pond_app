@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="text-center text-white mb-4">
+    <h2><i class="bi bi-people"></i> User Management</h2>
+</div>
+
+{% if session.get('user', {}).get('role') != 'admin' %}
+<div class="sensor-card">
+    <div class="alert alert-danger">
+        <strong>Access Denied:</strong> Only administrators can manage users.
+    </div>
+</div>
+{% else %}
+
+<!-- Create New User Card -->
+<div class="sensor-card mb-4">
+    <h4><i class="bi bi-person-plus"></i> Create New User</h4>
+    <form id="create-user-form">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Username *</label>
+                <input type="text" class="form-control" name="username" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Email *</label>
+                <input type="email" class="form-control" name="email" placeholder="example@gmail.com" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Full Name *</label>
+                <input type="text" class="form-control" name="full_name" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Role *</label>
+                <select class="form-select" name="role" required>
+                    <option value="farmer">Farmer</option>
+                    <option value="admin">Administrator</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Password *</label>
+                <input type="password" class="form-control" name="password" required minlength="6">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Confirm Password *</label>
+                <input type="password" class="form-control" name="confirm_password" required minlength="6">
+            </div>
+        </div>
+        <div id="create-user-message" class="mt-3"></div>
+        <button type="submit" class="btn btn-primary mt-3">
+            <i class="bi bi-plus-circle"></i> Create User
+        </button>
+    </form>
+</div>
+
+<!-- Existing Users List -->
+<div class="sensor-card">
+    <h4><i class="bi bi-people-fill"></i> All Users</h4>
+    <div class="table-responsive" id="users-table">
+        <p class="text-muted">Loading users...</p>
+    </div>
+</div>
+
+<!-- Deleted Users List (Pending Permanent Deletion) -->
+<div class="sensor-card">
+    <h4><i class="bi bi-trash"></i> Deleted Users (Pending Permanent Deletion)</h4>
+    <p class="text-muted">These users will be permanently deleted after 30 days</p>
+    <div class="table-responsive" id="deleted-users-table">
+        <p class="text-muted">Loading deleted users...</p>
+    </div>
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Handle user creation form
+    document.getElementById('create-user-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
+
+        // Validate password match
+        if (data.password !== data.confirm_password) {
+            document.getElementById('create-user-message').innerHTML =
+                '<div class="alert alert-danger">Passwords do not match!</div>';
+            return;
+        }
+
+        delete data.confirm_password;
+
+        try {
+            const response = await fetch('/api-proxy/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                document.getElementById('create-user-message').innerHTML =
+                    '<div class="alert alert-success">User created successfully!</div>';
+                e.target.reset();
+                loadUsers();
+            } else {
+                document.getElementById('create-user-message').innerHTML =
+                    `<div class="alert alert-danger">Error: ${result.error}</div>`;
+            }
+        } catch (error) {
+            document.getElementById('create-user-message').innerHTML =
+                `<div class="alert alert-danger">Failed to create user: ${error.message}</div>`;
+        }
+    });
+
+    // Delete user function
+    async function deleteUser(userId, username) {
+        if (!confirm(`Are you sure you want to delete user "${username}"?\n\nThe user will be marked for deletion and permanently removed after 30 days.`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api-proxy/users/${userId}/delete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                alert(result.message);
+                loadUsers();
+            } else {
+                alert('Error: ' + result.error);
+            }
+        } catch (error) {
+            alert('Failed to delete user: ' + error.message);
+        }
+    }
+
+    // Restore user function
+    async function restoreUser(userId, username) {
+        if (!confirm(`Restore user "${username}"?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api-proxy/users/${userId}/restore`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                alert(result.message);
+                loadUsers();
+                loadDeletedUsers();
+            } else {
+                alert('Error: ' + result.error);
+            }
+        } catch (error) {
+            alert('Failed to restore user: ' + error.message);
+        }
+    }
+
+    // Load and display users
+    function loadUsers() {
+        fetch('/api-proxy/users')
+            .then(r => r.json())
+            .then(data => {
+                const container = document.getElementById('users-table');
+                const users = data.users || [];
+
+                if (users.length === 0) {
+                    container.innerHTML = '<p class="text-muted">No users found</p>';
+                    return;
+                }
+
+                container.innerHTML = `
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Full Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Organization</th>
+                            <th>Devices</th>
+                            <th>Last Login</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${users.map(u => `
+                            <tr>
+                                <td><strong>${u.username}</strong></td>
+                                <td>${u.full_name || '--'}</td>
+                                <td>${u.email || '--'}</td>
+                                <td><span class="badge bg-${u.role === 'admin' ? 'danger' : 'primary'}">${u.role}</span></td>
+                                <td>${u.organization_name || '--'}</td>
+                                <td>${u.device_count || 0}</td>
+                                <td>${u.last_login ? new Date(u.last_login).toLocaleDateString() : 'Never'}</td>
+                                <td><span class="badge bg-${u.is_active ? 'success' : 'secondary'}">${u.is_active ? 'Active' : 'Inactive'}</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id}, '${u.username}')">
+                                        <i class="bi bi-trash"></i> Delete
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            })
+            .catch(err => {
+                console.error('Error loading users:', err);
+                document.getElementById('users-table').innerHTML =
+                    '<p class="text-danger">Failed to load users</p>';
+            });
+    }
+
+    // Load deleted users
+    function loadDeletedUsers() {
+        fetch('/api-proxy/users/deleted')
+            .then(r => r.json())
+            .then(data => {
+                const container = document.getElementById('deleted-users-table');
+                if (!container) return;
+
+                const users = data.deleted_users || [];
+
+                if (users.length === 0) {
+                    container.innerHTML = '<p class="text-muted">No deleted users</p>';
+                    return;
+                }
+
+                container.innerHTML = `
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Full Name</th>
+                            <th>Deleted On</th>
+                            <th>Days Until Permanent Delete</th>
+                            <th>Deleted By</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${users.map(u => {
+                    const daysLeft = 30 - Math.floor(u.days_since_deletion);
+                    return `
+                            <tr class="table-warning">
+                                <td><strong>${u.username}</strong></td>
+                                <td>${u.full_name || '--'}</td>
+                                <td>${new Date(u.deleted_at).toLocaleDateString()}</td>
+                                <td><span class="badge bg-warning text-dark">${daysLeft} days</span></td>
+                                <td>${u.deleted_by_username || '--'}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-success" onclick="restoreUser(${u.id}, '${u.username}')">
+                                        <i class="bi bi-arrow-counterclockwise"></i> Restore
+                                    </button>
+                                </td>
+                            </tr>
+                        `}).join('')}
+                    </tbody>
+                </table>
+            `;
+            });
+    }
+
+    loadUsers();
+    loadDeletedUsers();
+</script>
+{% endblock %}

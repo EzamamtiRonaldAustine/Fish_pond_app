@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block extra_css %}
+<style>
+    .hero-section {
+        padding: 80px 0;
+        text-align: center;
+    }
+
+    .feature-card {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        margin-bottom: 20px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        height: 100%;
+    }
+
+    .feature-icon {
+        font-size: 3rem;
+        margin-bottom: 20px;
+        color: #667eea;
+    }
+
+    .cta-section {
+        background: white;
+        border-radius: 15px;
+        padding: 40px;
+        margin-top: 40px;
+        text-align: center;
+    }
+
+    .stat-box {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        padding: 20px;
+        margin: 10px;
+        backdrop-filter: blur(10px);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="hero-section text-white">
+    <h1 class="display-2 fw-bold mb-4">
+        <i class="bi bi-droplet-fill"></i> Smart Fish Pond Monitoring
+    </h1>
+    <p class="lead fs-4 mb-4">
+        Real-time IoT Water Quality Monitoring for Healthy Fish Farming
+    </p>
+    <p class="fs-5 mb-5">
+        Monitor temperature, pH, nutrients, and more—all from your smartphone
+    </p>
+
+    <div class="row justify-content-center mb-5">
+        <div class="col-md-3 col-6">
+            <div class="stat-box">
+                <h3 class="fw-bold">24/7</h3>
+                <p class="mb-0">Monitoring</p>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="stat-box">
+                <h3 class="fw-bold">Real-time</h3>
+                <p class="mb-0">Alerts</p>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="stat-box">
+                <h3 class="fw-bold">IoT</h3>
+                <p class="mb-0">Powered</p>
+            </div>
+        </div>
+    </div>
+
+    <div>
+        {% if not session.get('token') %}
+        <a href="/signup" class="btn btn-success btn-lg me-3">
+            <i class="bi bi-person-plus"></i> Get Started Free
+        </a>
+        <a href="/login" class="btn btn-outline-light btn-lg">
+            <i class="bi bi-box-arrow-in-right"></i> Login
+        </a>
+        {% else %}
+        <a href="/dashboard" class="btn btn-primary btn-lg">
+            <i class="bi bi-speedometer2"></i> Go to Dashboard
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Features Section -->
+<div class="row g-4 mb-5">
+    <div class="col-md-4">
+        <div class="feature-card">
+            <div class="feature-icon">
+                <i class="bi bi-graph-up-arrow"></i>
+            </div>
+            <h4>Real-Time Monitoring</h4>
+            <p>Track water quality parameters 24/7 with instant updates to your device</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="feature-card">
+            <div class="feature-icon">
+                <i class="bi bi-bell-fill"></i>
+            </div>
+            <h4>Smart Alerts</h4>
+            <p>Get notified immediately when conditions exceed safe thresholds</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="feature-card">
+            <div class="feature-icon">
+                <i class="bi bi-clipboard-data"></i>
+            </div>
+            <h4>Historical Analytics</h4>
+            <p>View trends and patterns to optimize your pond management</p>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-5">
+    <div class="col-md-4">
+        <div class="feature-card">
+            <div class="feature-icon">
+                <i class="bi bi-thermometer-half"></i>
+            </div>
+            <h4>Multi-Sensor System</h4>
+            <p>Temperature, pH, EC, nutrients, and turbidity—all in one system</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="feature-card">
+            <div class="feature-icon">
+                <i class="bi bi-phone"></i>
+            </div>
+            <h4>Mobile Friendly</h4>
+            <p>Access your pond data anywhere, anytime from any device</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="feature-card">
+            <div class="feature-icon">
+                <i class="bi bi-shield-check"></i>
+            </div>
+            <h4>Secure & Reliable</h4>
+            <p>Enterprise-grade security with 99.9% uptime guarantee</p>
+        </div>
+    </div>
+</div>
+
+<!-- CTA Section -->
+<div class="cta-section">
+    <h2 class="mb-3">Ready to Transform Your Fish Farming?</h2>
+    <p class="lead mb-4">Join farmers who are already using smart technology to increase yields</p>
+    {% if not session.get('token') %}
+    <a href="/signup" class="btn btn-success btn-lg me-3">
+        <i class="bi bi-person-plus"></i> Create Free Account
+    </a>
+    <p class="mt-3 text-muted">
+        <small>No credit card required • Free for 30 days</small>
+    </p>
+    {% else %}
+    <a href="/dashboard" class="btn btn-primary btn-lg">
+        <i class="bi bi-speedometer2"></i> View Your Dashboard
+    </a>
+    {% endif %}
+</div>
+
+<!-- Contact Info -->
+<div class="sensor-card mt-4 text-center">
+    <h5><i class="bi bi-telephone-fill"></i> Need a Device?</h5>
+    <p class="mb-2">Contact us to purchase an IoT monitoring device</p>
+    <p class="fw-bold fs-5 mb-0">
+        <i class="bi bi-whatsapp"></i> +256 763 583 059
+    </p>
+    <p class="text-muted">
+        <small>Email: support@fishpond.ug</small>
+    </p>
+</div>
+{% endblock %}
