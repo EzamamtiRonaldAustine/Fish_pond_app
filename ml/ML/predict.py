@@ -7,7 +7,7 @@ import pandas as pd
 # Ensure project root is importable when running as a script
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from config import MODEL_PATH, METADATA_PATH, SCALER_PATH
+from ml_config import MODEL_PATH, METADATA_PATH, SCALER_PATH
 from ML.features import build_features
 
 

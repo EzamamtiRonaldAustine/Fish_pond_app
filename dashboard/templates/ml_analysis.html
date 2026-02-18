@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h2 class="mb-4">ML Analysis Dashboard</h2>
+
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Run Analysis</h5>
+            </div>
+            <div class="card-body">
+                <p>Upload your sensor data file (Excel or CSV) to analyze current algae bloom risk.</p>
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="input-group mb-3">
+                        <input type="file" class="form-control" id="dataFile" name="file" accept=".xlsx, .xls, .csv"
+                            required>
+                        <button class="btn btn-primary" type="submit">Analyze</button>
+                    </div>
+                    <small class="text-muted">The file must contain historical data for accurate feature
+                        engineering.</small>
+                </form>
+            </div>
+        </div>
+
+        {% if result %}
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Analysis Results</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center mb-4">
+                    <div class="col-md-4">
+                        <h5>Risk Level</h5>
+                        {% set badge_class = 'bg-success' %}
+                        {% if result.level == 'Medium' %}
+                        {% set badge_class = 'bg-warning text-dark' %}
+                        {% elif result.level == 'High' %}
+                        {% set badge_class = 'bg-danger' %}
+                        {% endif %}
+                        <h1><span class="badge {{ badge_class }}">{{ result.level }}</span></h1>
+                    </div>
+                    <div class="col-md-8">
+                        <h5>Confidence</h5>
+                        <div class="progress" style="height: 30px;">
+                            {% set low_prob = result.probs.get('Low', 0) * 100 %}
+                            {% set med_prob = result.probs.get('Medium', 0) * 100 %}
+                            {% set high_prob = result.probs.get('High', 0) * 100 %}
+
+                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ low_prob }}%"
+                                aria-valuenow="{{ low_prob }}" aria-valuemin="0" aria-valuemax="100">Low ({{
+                                "%.1f"|format(low_prob) }}%)</div>
+                            <div class="progress-bar bg-warning text-dark" role="progressbar"
+                                style="width: {{ med_prob }}%" aria-valuenow="{{ med_prob }}" aria-valuemin="0"
+                                aria-valuemax="100">Medium ({{ "%.1f"|format(med_prob) }}%)</div>
+                            <div class="progress-bar bg-danger" role="progressbar" style="width: {{ high_prob }}%"
+                                aria-valuenow="{{ high_prob }}" aria-valuemin="0" aria-valuemax="100">High ({{
+                                "%.1f"|format(high_prob) }}%)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-info border-info">
+                    <h5 class="alert-heading"><i class="fas fa-info-circle"></i> Recommendation</h5>
+                    <p class="mb-0">{{ result.recommendation }}</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

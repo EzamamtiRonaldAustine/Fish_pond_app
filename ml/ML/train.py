@@ -34,7 +34,7 @@ from joblib import dump
 # Ensure project root is on the path
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from config import (
+from ml_config import (
     MODEL_PATH,
     METADATA_PATH,
     SCALER_PATH,
