@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, current_app, flash, redirect, url_for
+from flask import Blueprint, render_template, request, current_app, flash, redirect, url_for, session
 import os
 import sys
 import pandas as pd
@@ -33,6 +33,10 @@ def get_predictor():
 
 @ml_bp.route('/ml-analysis', methods=['GET', 'POST'])
 def ml_analysis():
+    if not session.get('token'):
+        flash("Please login to access the ML Analysis dashboard.", "warning")
+        return redirect(url_for('pages.login_page'))
+
     if not ml_available:
         flash("ML Module is not available. Please check server logs.", "danger")
         return render_template('ml_analysis.html', result=None)

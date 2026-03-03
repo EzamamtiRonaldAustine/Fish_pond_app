@@ -5,20 +5,45 @@
     <div class="col-md-12">
         <h2 class="mb-4">ML Analysis Dashboard</h2>
 
-        <div class="card mb-4">
+        <div class="card mb-4 border-info">
+            <div class="card-body">
+                <h4 class="text-primary"><i class="bi bi-info-circle-fill"></i> Understanding Algae Bloom Risk</h4>
+                <p class="text-muted">
+                    Algae blooms occur when microscopic plants grow out of control, depleting oxygen and producing
+                    toxins that are harmful to fish.
+                    Our Machine Learning model analyzes current and historical pond conditions to predict the likelihood
+                    of a bloom before it becomes visible.
+                </p>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="bi bi-thermometer-half"></i> Temperature & pH</h6>
+                        <p class="small text-muted">Warm, alkaline water accelerates algae growth. High pH often
+                            indicates a current bloom in progress.</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="bi bi-moisture"></i> Nutrients (Ammonia & Nitrate)</h6>
+                        <p class="small text-muted">High levels of waste products (Ammonia) and fertilizers (Nitrate)
+                            act as fuel for rapid algae reproduction.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4 shadow-sm">
             <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Run Analysis</h5>
+                <h5 class="mb-0"><i class="bi bi-cloud-upload"></i> Upload Sensor Data</h5>
             </div>
             <div class="card-body">
-                <p>Upload your sensor data file (Excel or CSV) to analyze current algae bloom risk.</p>
+                <p>Please upload your latest sensor export (Excel or CSV). The model requires at least 12-24 hours of
+                    historical data to accurately calculate trends and risk levels.</p>
                 <form method="POST" enctype="multipart/form-data">
                     <div class="input-group mb-3">
                         <input type="file" class="form-control" id="dataFile" name="file" accept=".xlsx, .xls, .csv"
                             required>
-                        <button class="btn btn-primary" type="submit">Analyze</button>
+                        <button class="btn btn-primary px-4" type="submit">Run Analysis</button>
                     </div>
-                    <small class="text-muted">The file must contain historical data for accurate feature
-                        engineering.</small>
+                    <small class="text-muted"><i class="bi bi-lightbulb"></i> Tip: Use the latest export from your pond
+                        monitoring device.</small>
                 </form>
             </div>
         </div>
@@ -42,20 +67,34 @@
                     </div>
                     <div class="col-md-8">
                         <h5>Confidence</h5>
-                        <div class="progress" style="height: 30px;">
+                        <div class="progress" style="height: 30px; background-color: #f0f0f0;">
                             {% set low_prob = result.probs.get('Low', 0) * 100 %}
                             {% set med_prob = result.probs.get('Medium', 0) * 100 %}
                             {% set high_prob = result.probs.get('High', 0) * 100 %}
 
-                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ low_prob }}%"
-                                aria-valuenow="{{ low_prob }}" aria-valuemin="0" aria-valuemax="100">Low ({{
-                                "%.1f"|format(low_prob) }}%)</div>
+                            <div class="progress-bar bg-success" role="progressbar"
+                                style="width: {{ low_prob }}%; overflow: visible; white-space: nowrap; min-width: {% if low_prob > 0 %}2px{% else %}0{% endif %};"
+                                aria-valuenow="{{ low_prob }}" aria-valuemin="0" aria-valuemax="100">
+                                {% if low_prob > 10 %}Low ({{ "%.1f"|format(low_prob) }}%){% elif low_prob > 0 %}L{%
+                                endif %}
+                            </div>
                             <div class="progress-bar bg-warning text-dark" role="progressbar"
-                                style="width: {{ med_prob }}%" aria-valuenow="{{ med_prob }}" aria-valuemin="0"
-                                aria-valuemax="100">Medium ({{ "%.1f"|format(med_prob) }}%)</div>
-                            <div class="progress-bar bg-danger" role="progressbar" style="width: {{ high_prob }}%"
-                                aria-valuenow="{{ high_prob }}" aria-valuemin="0" aria-valuemax="100">High ({{
-                                "%.1f"|format(high_prob) }}%)</div>
+                                style="width: {{ med_prob }}%; overflow: visible; white-space: nowrap; min-width: {% if med_prob > 0 %}2px{% else %}0{% endif %};"
+                                aria-valuenow="{{ med_prob }}" aria-valuemin="0" aria-valuemax="100">
+                                {% if med_prob > 10 %}Medium ({{ "%.1f"|format(med_prob) }}%){% elif med_prob > 0 %}M{%
+                                endif %}
+                            </div>
+                            <div class="progress-bar bg-danger" role="progressbar"
+                                style="width: {{ high_prob }}%; overflow: visible; white-space: nowrap; min-width: {% if high_prob > 0 %}2px{% else %}0{% endif %};"
+                                aria-valuenow="{{ high_prob }}" aria-valuemin="0" aria-valuemax="100">
+                                {% if high_prob > 10 %}High ({{ "%.1f"|format(high_prob) }}%){% elif high_prob > 0 %}H{%
+                                endif %}
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between mt-1 small text-muted">
+                            <span>Low: {{ "%.1f"|format(low_prob) }}%</span>
+                            <span>Medium: {{ "%.1f"|format(med_prob) }}%</span>
+                            <span>High: {{ "%.1f"|format(high_prob) }}%</span>
                         </div>
                     </div>
                 </div>

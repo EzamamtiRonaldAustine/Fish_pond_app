@@ -182,15 +182,14 @@
                     <li class="nav-item"><a class="nav-link" href="/alerts"><i class="bi bi-bell"></i> Alerts</a></li>
                     <li class="nav-item"><a class="nav-link" href="/devices"><i class="bi bi-hdd-network"></i>
                             Devices</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('ml.ml_analysis') }}"><i
+                                class="bi bi-cpu"></i> ML Analysis</a></li>
                     {% if session.get('user', {}).get('role') == 'admin' %}
                     <li class="nav-item"><a class="nav-link" href="/users"><i class="bi bi-people"></i> Users</a></li>
                     {% endif %}
                     {% else %}
                     <!-- Public visitors see these -->
                     <li class="nav-item"><a class="nav-link" href="/about"><i class="bi bi-info-circle"></i> About</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('ml.ml_analysis') }}">ML Analysis</a>
                     </li>
                     <li class="nav-item"><a class="nav-link" href="/contact"><i class="bi bi-telephone"></i> Contact</a>
                     </li>
@@ -201,7 +200,7 @@
                         <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
                             <i class="bi bi-person-circle"></i> {{ session.get('user', {}).get('username', 'User') }}
                         </a>
-                        <ul class="dropdown-menu">
+                        <ul class="dropdown-menu dropdown-menu-end">
                             <li><span class="dropdown-item-text">
                                     <small class="text-muted">{{ session.get('user', {}).get('organization_name', 'No
                                         Org') }}</small><br>
