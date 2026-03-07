@@ -1,2 +1,14 @@
-requests
-RPi.GPIO
+# pi/requirements_pi.txt — Raspberry Pi Hardware Agent dependencies
+# Install with: pip install -r requirements_pi.txt
+
+# Hardware interfaces
+RPi.GPIO>=0.7.1
+minimalmodbus>=2.1.1
+RPLCD>=1.3.0
+pyserial>=3.5
+
+# HTTP client for Flask API integration
+requests>=2.31.0
+
+# Environment variable management (.env file support)
+python-dotenv>=1.0.0

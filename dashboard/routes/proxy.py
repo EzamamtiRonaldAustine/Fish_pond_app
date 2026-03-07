@@ -4,7 +4,7 @@ from ..config import Config
 
 proxy_bp = Blueprint('proxy', __name__)
 
-@proxy_bp.route('/api-proxy/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
+@proxy_bp.route('/api-proxy/<path:path>', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])
 def api_proxy(path):
     """
     Proxy requests to the backend API.
@@ -34,6 +34,8 @@ def api_proxy(path):
             response = requests.post(url, headers=headers, json=data, params=params, timeout=10)
         elif method == 'PUT':
             response = requests.put(url, headers=headers, json=data, params=params, timeout=10)
+        elif method == 'PATCH':
+            response = requests.patch(url, headers=headers, json=data, params=params, timeout=10)
         elif method == 'DELETE':
             response = requests.delete(url, headers=headers, params=params, timeout=10)
         else:

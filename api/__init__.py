@@ -9,6 +9,7 @@ from .routes.sensors import sensors_bp
 from .routes.alerts import alerts_bp
 from .routes.organizations import organizations_bp
 from .routes.health import health_bp
+from .routes.control import control_bp
 
 def create_app():
     app = Flask(__name__)
@@ -27,5 +28,6 @@ def create_app():
     app.register_blueprint(alerts_bp,        url_prefix='/api')
     app.register_blueprint(organizations_bp, url_prefix='/api')
     app.register_blueprint(health_bp,        url_prefix='/api')
+    app.register_blueprint(control_bp,       url_prefix='/api')
 
     return app

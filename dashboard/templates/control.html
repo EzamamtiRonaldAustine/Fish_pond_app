@@ -1,0 +1,1016 @@
+{% extends "base.html" %}
+
+{% block title %}Hardware Control Centre — Fish Pond Monitor{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ── Page layout ──────────────────────────────────────────── */
+    .control-header {
+        background: rgba(255, 255, 255, 0.07);
+        border-radius: 18px;
+        padding: 28px 32px;
+        margin-bottom: 28px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+
+    .control-header-icon {
+        font-size: 3rem;
+        color: #7cd4fd;
+    }
+
+    .control-header h1 {
+        font-size: 1.8rem;
+        color: #fff;
+        margin: 0;
+        font-weight: 700;
+    }
+
+    .control-header p {
+        color: rgba(255, 255, 255, 0.75);
+        margin: 0;
+        font-size: 0.95rem;
+    }
+
+    /* ── Cards ──────────────────────────────────────────────────── */
+    .ctrl-card {
+        background: rgba(255, 255, 255, 0.96);
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+        height: 100%;
+    }
+
+    .ctrl-card-title {
+        font-size: 0.8rem;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: #64748b;
+        font-weight: 700;
+        margin-bottom: 18px;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+    }
+
+    /* ── Status banner ────────────────────────────────────────── */
+    .status-banner {
+        border-radius: 14px;
+        padding: 18px 26px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 26px;
+        transition: all .4s;
+    }
+
+    .status-banner.GOOD {
+        background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+        border: 2px solid #34d399;
+    }
+
+    .status-banner.WARNING {
+        background: linear-gradient(135deg, #fef3c7, #fde68a);
+        border: 2px solid #f59e0b;
+    }
+
+    .status-banner.CRITICAL {
+        background: linear-gradient(135deg, #fee2e2, #fecaca);
+        border: 2px solid #f87171;
+        animation: pulse-border 2s infinite;
+    }
+
+    @keyframes pulse-border {
+
+        0%,
+        100% {
+            box-shadow: 0 0 0 0 rgba(248, 113, 113, .4);
+        }
+
+        50% {
+            box-shadow: 0 0 0 8px rgba(248, 113, 113, 0);
+        }
+    }
+
+    .status-banner-icon {
+        font-size: 2.4rem;
+    }
+
+    .status-banner-text {
+        flex: 1;
+    }
+
+    .status-banner-text h3 {
+        margin: 0;
+        font-weight: 800;
+        font-size: 1.4rem;
+    }
+
+    .status-banner-text p {
+        margin: 0;
+        font-size: 0.9rem;
+        opacity: .8;
+    }
+
+    .quality-score-pill {
+        font-size: 1.8rem;
+        font-weight: 900;
+        background: rgba(0, 0, 0, 0.08);
+        border-radius: 50px;
+        padding: 8px 20px;
+    }
+
+    /* ── LED Indicators ────────────────────────────────────────── */
+    .led-row {
+        display: flex;
+        gap: 18px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .led-item {
+        text-align: center;
+    }
+
+    .led-dot {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        margin: 0 auto 6px;
+        border: 3px solid rgba(0, 0, 0, 0.1);
+        transition: all .4s;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+    }
+
+    .led-dot.active {
+        box-shadow: 0 0 12px 4px currentColor;
+    }
+
+    .led-dot.led-blue {
+        background: #3b82f6;
+        color: #3b82f6;
+    }
+
+    .led-dot.led-yellow {
+        background: #f59e0b;
+        color: #f59e0b;
+    }
+
+    .led-dot.led-red {
+        background: #ef4444;
+        color: #ef4444;
+    }
+
+    .led-dot.led-off {
+        background: #d1d5db;
+    }
+
+    .led-label {
+        font-size: 0.72rem;
+        color: #64748b;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    /* ── Pump / connectivity badges ───────────────────────────── */
+    .hw-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 18px;
+        border-radius: 12px;
+        font-size: 0.9rem;
+        font-weight: 700;
+    }
+
+    .hw-badge-pump-on {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .hw-badge-pump-off {
+        background: #f1f5f9;
+        color: #475569;
+    }
+
+    .hw-badge-online {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .hw-badge-offline {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .hw-badge-warning {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    /* ── Gauge charts ───────────────────────────────────────────── */
+    .gauge-wrap {
+        position: relative;
+        width: 130px;
+        height: 130px;
+        margin: 0 auto 8px;
+    }
+
+    .gauge-label {
+        font-size: 0.78rem;
+        color: #64748b;
+        text-align: center;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .gauge-value {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: #1e3a5f;
+        text-align: center;
+        line-height: 1.1;
+    }
+
+    .gauge-unit {
+        font-size: 0.65rem;
+        display: block;
+        color: #64748b;
+        font-weight: 500;
+    }
+
+    /* ── Control buttons ────────────────────────────────────────── */
+    .ctrl-btn {
+        border: none;
+        border-radius: 12px;
+        padding: 13px 22px;
+        font-weight: 700;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: all .2s;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        width: 100%;
+        justify-content: center;
+        margin-bottom: 12px;
+    }
+
+    .ctrl-btn:disabled {
+        opacity: .5;
+        cursor: not-allowed;
+    }
+
+    .ctrl-btn-pump-on {
+        background: linear-gradient(135deg, #34d399, #059669);
+        color: #fff;
+        box-shadow: 0 4px 15px rgba(52, 211, 153, .35);
+    }
+
+    .ctrl-btn-pump-on:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(52, 211, 153, .5);
+    }
+
+    .ctrl-btn-pump-off {
+        background: linear-gradient(135deg, #94a3b8, #64748b);
+        color: #fff;
+        box-shadow: 0 4px 15px rgba(100, 116, 139, .3);
+    }
+
+    .ctrl-btn-pump-off:hover:not(:disabled) {
+        transform: translateY(-2px);
+    }
+
+    .ctrl-btn-stop {
+        background: linear-gradient(135deg, #f87171, #dc2626);
+        color: #fff;
+        box-shadow: 0 4px 15px rgba(248, 113, 113, .35);
+    }
+
+    .ctrl-btn-stop:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(248, 113, 113, .5);
+    }
+
+    /* Mode selector */
+    .mode-select {
+        border-radius: 10px;
+        border: 2px solid #e2e8f0;
+        padding: 9px 14px;
+        font-size: 0.9rem;
+        width: 100%;
+        margin-bottom: 12px;
+        font-weight: 600;
+        background: #f8fafc;
+    }
+
+    /* ── Toast ──────────────────────────────────────────────────── */
+    .cmd-toast {
+        position: fixed;
+        bottom: 28px;
+        right: 28px;
+        min-width: 290px;
+        max-width: 360px;
+        background: #1e293b;
+        color: #fff;
+        border-radius: 14px;
+        padding: 16px 20px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        z-index: 9999;
+        display: none;
+        animation: slideIn .3s ease;
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateX(110%);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    .cmd-toast.success {
+        border-left: 4px solid #34d399;
+    }
+
+    .cmd-toast.error {
+        border-left: 4px solid #f87171;
+    }
+
+    /* ── Command history ────────────────────────────────────────── */
+    .cmd-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 0.85rem;
+    }
+
+    .cmd-badge {
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 0.75rem;
+    }
+
+    .cmd-executed {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .cmd-pending {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .cmd-acknowledged {
+        background: #e0f2fe;
+        color: #0369a1;
+    }
+
+    .cmd-failed {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    /* ── Uptime / connectivity row ──────────────────────────────── */
+    .stat-pill {
+        background: #f8fafc;
+        border-radius: 10px;
+        padding: 10px 14px;
+        text-align: center;
+        font-size: 0.82rem;
+    }
+
+    .stat-pill .val {
+        font-size: 1.1rem;
+        font-weight: 800;
+        color: #1e3a5f;
+        display: block;
+    }
+
+    .stat-pill .lbl {
+        color: #64748b;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+
+    /* ── Refresh spinner ────────────────────────────────────────── */
+    #refresh-spinner {
+        display: none;
+    }
+
+    .spin {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    /* ── Confirmation modal ─────────────────────────────────────── */
+    .confirm-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        z-index: 8000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .confirm-modal-backdrop.open {
+        display: flex;
+    }
+
+    .confirm-modal {
+        background: #fff;
+        border-radius: 20px;
+        padding: 36px;
+        max-width: 420px;
+        width: 90%;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        text-align: center;
+    }
+
+    .confirm-modal h4 {
+        font-weight: 800;
+        margin-bottom: 10px;
+    }
+
+    .confirm-modal p {
+        color: #64748b;
+        margin-bottom: 24px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- ══════════════════════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════════════════════ -->
+<div class="control-header">
+    <i class="bi bi-sliders control-header-icon"></i>
+    <div>
+        <h1>Hardware Control Centre</h1>
+        <p>Real-time monitoring &amp; control of your fish pond IoT device</p>
+    </div>
+    <div class="ms-auto d-flex align-items-center gap-3">
+        <span id="last-update-badge" class="hw-badge hw-badge-pump-off" style="font-size:.78rem;">
+            <i class="bi bi-clock"></i> —
+        </span>
+        <button class="btn btn-sm btn-outline-light" id="manual-refresh" title="Refresh now">
+            <i id="refresh-spinner" class="bi bi-arrow-clockwise"></i>
+            <i id="refresh-icon" class="bi bi-arrow-clockwise"></i>
+        </button>
+    </div>
+</div>
+
+<!-- Device selector row -->
+<div class="row mb-3">
+    <div class="col-auto">
+        <select class="form-select form-select-sm bg-white" id="device-select" style="min-width:220px;">
+            <option value="">Loading devices…</option>
+        </select>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     STATUS BANNER
+══════════════════════════════════════════════════════════ -->
+<div id="status-banner" class="status-banner GOOD">
+    <span class="status-banner-icon" id="banner-icon">🟢</span>
+    <div class="status-banner-text">
+        <h3 id="banner-status">Loading…</h3>
+        <p id="banner-subtitle">Waiting for first data point from device</p>
+    </div>
+    <span class="quality-score-pill" id="banner-score">—</span>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     ROW 1 — Sensor Gauges + Hardware Status
+══════════════════════════════════════════════════════════ -->
+<div class="row g-4 mb-4">
+    <!-- ── Sensor Gauges ─────────────────────────────── -->
+    <div class="col-lg-8">
+        <div class="ctrl-card">
+            <div class="ctrl-card-title"><i class="bi bi-activity"></i> Sensor Readings</div>
+            <div class="row g-3 text-center" id="gauge-row">
+                {% for gauge in [
+                ('temperature', 'Temp', '°C', 0, 40, '#3b82f6'),
+                ('ph', 'pH', '', 0, 14, '#8b5cf6'),
+                ('ec', 'EC', 'µS/cm', 0,3000,'#06b6d4'),
+                ('nitrogen', 'N', 'mg/kg', 0, 300, '#f59e0b'),
+                ('phosphorus', 'P', 'mg/kg', 0, 300, '#ef4444'),
+                ('turbidity', 'Turb.','', 0, 1, '#10b981')
+                ] %}
+                <div class="col-4 col-md-2">
+                    <div class="gauge-wrap">
+                        <canvas id="gauge-{{ gauge[0] }}" width="130" height="130"></canvas>
+                        <div class="gauge-value">
+                            <span id="val-{{ gauge[0] }}">—</span>
+                            <span class="gauge-unit">{{ gauge[2] }}</span>
+                        </div>
+                    </div>
+                    <div class="gauge-label">{{ gauge[1] }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            <!-- Mini trend row -->
+            <div class="mt-4 pt-3 border-top d-flex gap-4 flex-wrap" id="trend-row" style="font-size:.8rem;">
+                <span id="trend-temperature" class="text-muted"><i class="bi bi-dash"></i> Temp</span>
+                <span id="trend-ph" class="text-muted"><i class="bi bi-dash"></i> pH</span>
+                <span id="trend-nitrogen" class="text-muted"><i class="bi bi-dash"></i> Nitrogen</span>
+                <span id="trend-phosphorus" class="text-muted"><i class="bi bi-dash"></i> Phosphorus</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Hardware Status ──────────────────────────── -->
+    <div class="col-lg-4">
+        <div class="ctrl-card">
+            <div class="ctrl-card-title"><i class="bi bi-cpu"></i> Hardware Status</div>
+
+            <!-- LED Indicators -->
+            <p class="mb-2" style="font-size:.78rem;color:#64748b;font-weight:600;">STATUS LEDs</p>
+            <div class="led-row mb-4">
+                <div class="led-item">
+                    <div id="led-blue" class="led-dot led-blue"></div>
+                    <div class="led-label">GOOD</div>
+                </div>
+                <div class="led-item">
+                    <div id="led-yellow" class="led-dot led-yellow"></div>
+                    <div class="led-label">WARN</div>
+                </div>
+                <div class="led-item">
+                    <div id="led-red" class="led-dot led-red"></div>
+                    <div class="led-label">CRIT</div>
+                </div>
+            </div>
+
+            <!-- Pump & Connectivity -->
+            <p class="mb-2" style="font-size:.78rem;color:#64748b;font-weight:600;">PUMP</p>
+            <div class="mb-3" id="pump-badge">
+                <span class="hw-badge hw-badge-pump-off"><i class="bi bi-droplet-half"></i> OFF</span>
+            </div>
+
+            <p class="mb-2" style="font-size:.78rem;color:#64748b;font-weight:600;">CONNECTIVITY</p>
+            <div id="conn-badge">
+                <span class="hw-badge hw-badge-offline"><i class="bi bi-wifi-off"></i> Offline</span>
+            </div>
+
+            <!-- Uptime stats -->
+            <div class="row g-2 mt-3" id="stat-row">
+                <div class="col-6">
+                    <div class="stat-pill">
+                        <span class="val" id="stat-uptime">—</span>
+                        <span class="lbl">Uptime</span>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="stat-pill">
+                        <span class="val" id="stat-pending">—</span>
+                        <span class="lbl">Pending Cmds</span>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="stat-pill">
+                        <span id="ts-dot" style="color:#94a3b8;">●</span>
+                        <span class="val" style="font-size:.9rem;" id="stat-ts">—</span>
+                        <span class="lbl">ThingSpeak</span>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="stat-pill">
+                        <span id="net-dot" style="color:#94a3b8;">●</span>
+                        <span class="val" style="font-size:.9rem;" id="stat-net">—</span>
+                        <span class="lbl">Network</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     ROW 2 — Control Panel + Command History
+══════════════════════════════════════════════════════════ -->
+<div class="row g-4 mb-4">
+    <!-- ── Control Panel ─────────────────────────────── -->
+    <div class="col-lg-4">
+        <div class="ctrl-card">
+            <div class="ctrl-card-title"><i class="bi bi-joystick"></i> Command Panel</div>
+
+            <div id="offline-warning" class="alert alert-warning py-2 mb-3" style="font-size:.85rem; display:none;">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                Device is offline. Commands will queue and execute when reconnected.
+            </div>
+
+            <!-- Pump ON with mode -->
+            <label class="form-label" style="font-size:.8rem;font-weight:700;color:#64748b;">PUMP MODE</label>
+            <select id="pump-mode-select" class="mode-select">
+                <option value="NORMAL">Normal (3 min)</option>
+                <option value="SHORT">Short (2 min)</option>
+                <option value="LONG">Long (4 min)</option>
+            </select>
+
+            <button class="ctrl-btn ctrl-btn-pump-on" id="btn-pump-on"
+                onclick="confirmCommand('PUMP_ON', 'Start the pump?', 'The pump will run in the selected mode.')">
+                <i class="bi bi-play-circle-fill"></i> Start Pump
+            </button>
+
+            <button class="ctrl-btn ctrl-btn-pump-off" id="btn-pump-off"
+                onclick="confirmCommand('PUMP_OFF', 'Stop the pump?', 'The pump will stop immediately.')">
+                <i class="bi bi-stop-circle-fill"></i> Stop Pump
+            </button>
+
+            <button class="ctrl-btn ctrl-btn-stop mt-2" id="btn-stop"
+                onclick="confirmCommand('SYSTEM_SHUTDOWN', '⚠️ Shutdown System?', 'This will stop the hardware agent on the Pi. You will need physical access to restart it.')">
+                <i class="bi bi-power"></i> Emergency Shutdown
+            </button>
+
+            <hr class="my-3">
+            <button class="ctrl-btn" style="background:#e0f2fe;color:#0369a1;"
+                onclick="confirmCommand('CLEAR_ALERT', 'Clear current alert?', 'This will acknowledge the active alert on the Pi.')">
+                <i class="bi bi-bell-slash"></i> Clear Alert
+            </button>
+        </div>
+    </div>
+
+    <!-- ── Command History ──────────────────────────── -->
+    <div class="col-lg-8">
+        <div class="ctrl-card">
+            <div class="ctrl-card-title">
+                <i class="bi bi-clock-history"></i> Recent Commands
+                <button class="btn btn-sm ms-auto" style="font-size:.78rem;color:#3b82f6;padding:2px 8px;"
+                    onclick="loadCommandHistory()">↻ Refresh</button>
+            </div>
+            <div id="cmd-history-list">
+                <p class="text-muted text-center py-4">Loading command history…</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     CONFIRMATION MODAL
+══════════════════════════════════════════════════════════ -->
+<div class="confirm-modal-backdrop" id="confirm-backdrop">
+    <div class="confirm-modal">
+        <div style="font-size:2.5rem;margin-bottom:12px;" id="confirm-icon">⚙️</div>
+        <h4 id="confirm-title">Confirm Action</h4>
+        <p id="confirm-body">Are you sure?</p>
+        <div class="d-flex gap-3 justify-content-center">
+            <button class="btn btn-light px-4" onclick="closeConfirm()">Cancel</button>
+            <button class="btn btn-primary px-4 fw-bold" id="confirm-ok-btn" onclick="executeQueued()">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     TOAST
+══════════════════════════════════════════════════════════ -->
+<div class="cmd-toast" id="cmd-toast">
+    <strong id="toast-title">Done</strong>
+    <p id="toast-body" style="margin:4px 0 0;font-size:.85rem;opacity:.85;"></p>
+</div>
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+    /* ─── CONFIG ──────────────────────────────────────── */
+    const API_BASE = '/api-proxy';           // Dashboard proxy
+    const REFRESH_MS = 10_000;                 // 10 s auto-refresh
+    const HISTORY_LIMIT = 10;
+
+    /* ─── STATE ───────────────────────────────────────── */
+    let currentDeviceId = null;
+    let queuedCommand = null;
+    let queuedParams = {};
+    let gaugeCharts = {};
+    let refreshTimer = null;
+
+    /* ─── GAUGE DEFINITIONS ───────────────────────────── */
+    const GAUGE_DEFS = [
+        { key: 'temperature', min: 0, max: 40, color: '#3b82f6', label: '°C' },
+        { key: 'ph', min: 0, max: 14, color: '#8b5cf6', label: '' },
+        { key: 'ec', min: 0, max: 3000, color: '#06b6d4', label: 'µS/cm' },
+        { key: 'nitrogen', min: 0, max: 300, color: '#f59e0b', label: 'mg/kg' },
+        { key: 'phosphorus', min: 0, max: 300, color: '#ef4444', label: 'mg/kg' },
+        { key: 'turbidity', min: 0, max: 1, color: '#10b981', label: '' },
+    ];
+
+    /* ─── INIT ────────────────────────────────────────── */
+    document.addEventListener('DOMContentLoaded', () => {
+        initGauges();
+        loadDevices();
+        document.getElementById('manual-refresh').addEventListener('click', refreshAll);
+        document.getElementById('device-select').addEventListener('change', e => {
+            currentDeviceId = e.target.value || null;
+            if (currentDeviceId) refreshAll();
+        });
+        loadCommandHistory();
+    });
+
+    /* ─── GAUGE INIT ──────────────────────────────────── */
+    function initGauges() {
+        GAUGE_DEFS.forEach(g => {
+            const ctx = document.getElementById('gauge-' + g.key).getContext('2d');
+            gaugeCharts[g.key] = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [0, g.max],
+                        backgroundColor: [g.color, '#f1f5f9'],
+                        borderWidth: 0,
+                        circumference: 270,
+                        rotation: 225,
+                    }]
+                },
+                options: {
+                    responsive: false,
+                    cutout: '78%',
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                    animation: { duration: 700, easing: 'easeInOutQuart' }
+                }
+            });
+        });
+    }
+
+    function updateGauge(key, value) {
+        const chart = gaugeCharts[key];
+        if (!chart) return;
+        const def = GAUGE_DEFS.find(g => g.key === key);
+        const clamped = Math.max(def.min, Math.min(def.max, value ?? 0));
+        chart.data.datasets[0].data = [clamped, def.max - clamped];
+        chart.update('none');
+
+        const el = document.getElementById('val-' + key);
+        if (el) {
+            el.textContent = value != null
+                ? (key === 'turbidity' ? (value ? 'High' : 'Clear') : parseFloat(value).toFixed(key === 'ec' ? 0 : 1))
+                : '—';
+        }
+    }
+
+    /* ─── DEVICE LOADER ───────────────────────────────── */
+    async function loadDevices() {
+        try {
+            const r = await fetch(API_BASE + '/devices', { credentials: 'include' });
+            const d = await r.json();
+            const sel = document.getElementById('device-select');
+            const devices = d.devices || [];
+            sel.innerHTML = '';
+            if (devices.length === 0) {
+                sel.innerHTML = '<option value="">No devices found</option>';
+                return;
+            }
+            devices.forEach(dev => {
+                const opt = document.createElement('option');
+                opt.value = dev.id;
+                opt.textContent = dev.name + (dev.location_description ? ' (' + dev.location_description + ')' : '');
+                sel.appendChild(opt);
+            });
+            currentDeviceId = devices[0].id;
+            sel.value = currentDeviceId;
+            refreshAll();
+            refreshTimer = setInterval(refreshAll, REFRESH_MS);
+        } catch (e) {
+            console.error('Load devices failed', e);
+        }
+    }
+
+    /* ─── MAIN REFRESH ────────────────────────────────── */
+    async function refreshAll() {
+        if (!currentDeviceId) return;
+        showSpinner(true);
+        await Promise.all([fetchReadings(), fetchStatus()]);
+        document.getElementById('last-update-badge').innerHTML =
+            '<i class="bi bi-clock"></i> ' + new Date().toLocaleTimeString();
+        showSpinner(false);
+    }
+
+    /* ─── SENSOR READINGS ─────────────────────────────── */
+    async function fetchReadings() {
+        try {
+            const r = await fetch(`${API_BASE}/devices/${currentDeviceId}/current-readings`, { credentials: 'include' });
+            if (!r.ok) return;
+            const d = await r.json();
+
+            GAUGE_DEFS.forEach(g => updateGauge(g.key, d[g.key]));
+
+            // Status banner
+            updateBanner(d.status, d.score);
+
+        } catch (e) { console.error('Readings fetch failed', e); }
+    }
+
+    /* ─── HARDWARE STATUS ─────────────────────────────── */
+    async function fetchStatus() {
+        try {
+            const r = await fetch(`${API_BASE}/devices/${currentDeviceId}/status`, { credentials: 'include' });
+            if (!r.ok) return;
+            const s = await r.json();
+
+            // LEDs
+            const leds = { blue: false, yellow: false, red: false };
+            if (s.led_status === 'GOOD') leds.blue = true;
+            if (s.led_status === 'WARNING') leds.yellow = true;
+            if (s.led_status === 'CRITICAL') leds.red = true;
+            setLed('led-blue', leds.blue);
+            setLed('led-yellow', leds.yellow);
+            setLed('led-red', leds.red);
+
+            // Pump
+            const pumpEl = document.getElementById('pump-badge');
+            if (s.pump_running) {
+                pumpEl.innerHTML = `<span class="hw-badge hw-badge-pump-on"><i class="bi bi-droplet-fill"></i> ON — ${s.pump_mode || ''}</span>`;
+            } else {
+                pumpEl.innerHTML = `<span class="hw-badge hw-badge-pump-off"><i class="bi bi-droplet-half"></i> OFF</span>`;
+            }
+
+            // Connectivity
+            const connEl = document.getElementById('conn-badge');
+            if (s.is_online) {
+                connEl.innerHTML = `<span class="hw-badge hw-badge-online"><i class="bi bi-wifi"></i> Online</span>`;
+            } else {
+                connEl.innerHTML = `<span class="hw-badge hw-badge-offline"><i class="bi bi-wifi-off"></i> Offline</span>`;
+            }
+
+            // Offline warning
+            document.getElementById('offline-warning').style.display = s.is_online ? 'none' : 'block';
+
+            // Stats
+            document.getElementById('stat-uptime').textContent = s.uptime_seconds != null ? fmtUptime(s.uptime_seconds) : '—';
+            document.getElementById('stat-pending').textContent = s.pending_commands ?? '—';
+            document.getElementById('stat-ts').textContent = s.thingspeak_ok ? 'OK' : 'Error';
+            document.getElementById('ts-dot').style.color = s.thingspeak_ok ? '#34d399' : '#f87171';
+            document.getElementById('stat-net').textContent = s.network_ok ? 'OK' : 'Error';
+            document.getElementById('net-dot').style.color = s.network_ok ? '#34d399' : '#f87171';
+
+        } catch (e) { console.error('Status fetch failed', e); }
+    }
+
+    /* ─── BANNER ──────────────────────────────────────── */
+    function updateBanner(status, score) {
+        const banner = document.getElementById('status-banner');
+        const icon = document.getElementById('banner-icon');
+        const statEl = document.getElementById('banner-status');
+        const subEl = document.getElementById('banner-subtitle');
+        const scoreEl = document.getElementById('banner-score');
+
+        banner.className = 'status-banner ' + (status || 'GOOD');
+        scoreEl.textContent = score != null ? score + ' / 100' : '—';
+
+        const info = {
+            GOOD: { icon: '🟢', text: 'All Good', sub: 'Water quality is within safe parameters.' },
+            WARNING: { icon: '🟡', text: 'Warning', sub: 'Some parameters need attention. Monitor closely.' },
+            CRITICAL: { icon: '🔴', text: 'Critical', sub: 'Immediate action required! Check the alerts below.' },
+        };
+        const s = info[status] || info.GOOD;
+        icon.textContent = s.icon;
+        statEl.textContent = s.text;
+        subEl.textContent = s.sub;
+    }
+
+    /* ─── LED HELPER ──────────────────────────────────── */
+    function setLed(id, active) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.classList.toggle('active', active);
+    }
+
+    /* ─── TREND LABELS ────────────────────────────────── */
+    function renderTrends(trends) {
+        const icons = { INCREASING: '↑', DECREASING: '↓', STABLE: '→' };
+        const colors = { INCREASING: '#f59e0b', DECREASING: '#3b82f6', STABLE: '#94a3b8' };
+        ['temperature', 'ph', 'nitrogen', 'phosphorus'].forEach(k => {
+            const el = document.getElementById('trend-' + k);
+            if (!el) return;
+            const t = trends?.[k] || 'STABLE';
+            el.innerHTML = `<span style="color:${colors[t]};font-weight:700;">${icons[t]}</span> ${k.charAt(0).toUpperCase() + k.slice(1)}`;
+        });
+    }
+
+    /* ─── COMMAND HISTORY ─────────────────────────────── */
+    async function loadCommandHistory() {
+        if (!currentDeviceId) return;
+        const el = document.getElementById('cmd-history-list');
+        try {
+            const r = await fetch(`${API_BASE}/devices/${currentDeviceId}/commands/history?limit=${HISTORY_LIMIT}`, { credentials: 'include' });
+            const d = await r.json();
+            const items = d.history || [];
+            if (items.length === 0) {
+                el.innerHTML = '<p class="text-muted text-center py-3">No commands issued yet.</p>';
+                return;
+            }
+            el.innerHTML = items.map(c => `
+      <div class="cmd-row">
+        <span class="cmd-badge cmd-${c.status}">${c.status.toUpperCase()}</span>
+        <strong>${c.command}</strong>
+        <span class="text-muted ms-auto" style="font-size:.78rem;">
+          ${c.issued_by_username ? 'by ' + c.issued_by_username + ' · ' : ''}
+          ${c.issued_at ? new Date(c.issued_at).toLocaleString() : '—'}
+        </span>
+      </div>
+    `).join('');
+        } catch (e) {
+            el.innerHTML = '<p class="text-muted text-center py-3">Could not load command history.</p>';
+        }
+    }
+
+    /* ─── COMMAND FLOW ────────────────────────────────── */
+    function confirmCommand(command, title, body) {
+        queuedCommand = command;
+        queuedParams = {};
+
+        if (command === 'PUMP_ON') {
+            const mode = document.getElementById('pump-mode-select').value;
+            queuedParams = { mode };
+        }
+
+        document.getElementById('confirm-title').textContent = title;
+        document.getElementById('confirm-body').textContent = body;
+        document.getElementById('confirm-icon').textContent =
+            command === 'SYSTEM_SHUTDOWN' ? '⚠️' :
+                command === 'PUMP_ON' ? '💧' :
+                    command === 'PUMP_OFF' ? '⏹️' : '⚙️';
+
+        document.getElementById('confirm-backdrop').classList.add('open');
+    }
+
+    function closeConfirm() {
+        document.getElementById('confirm-backdrop').classList.remove('open');
+        queuedCommand = null;
+    }
+
+    async function executeQueued() {
+        if (!queuedCommand || !currentDeviceId) { closeConfirm(); return; }
+        closeConfirm();
+
+        setControlsDisabled(true);
+        try {
+            const r = await fetch(`${API_BASE}/devices/${currentDeviceId}/commands`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ command: queuedCommand, parameters: queuedParams }),
+            });
+            const d = await r.json();
+            if (r.ok) {
+                showToast('success', 'Command Queued', `${queuedCommand} queued (#${d.command_id}). Pi will execute shortly.`);
+                setTimeout(loadCommandHistory, 2000);
+            } else {
+                showToast('error', 'Command Failed', d.error || 'Unknown error');
+            }
+        } catch (e) {
+            showToast('error', 'Network Error', 'Could not reach the API server.');
+        } finally {
+            setControlsDisabled(false);
+        }
+    }
+
+    /* ─── UI HELPERS ──────────────────────────────────── */
+    function setControlsDisabled(disabled) {
+        document.querySelectorAll('.ctrl-btn').forEach(b => b.disabled = disabled);
+    }
+
+    function showToast(type, title, body) {
+        const t = document.getElementById('cmd-toast');
+        t.className = 'cmd-toast ' + type;
+        document.getElementById('toast-title').textContent = title;
+        document.getElementById('toast-body').textContent = body;
+        t.style.display = 'block';
+        setTimeout(() => { t.style.display = 'none'; }, 5000);
+    }
+
+    function showSpinner(show) {
+        document.getElementById('refresh-spinner').style.display = show ? 'inline-block' : 'none';
+        document.getElementById('refresh-spinner').classList.toggle('spin', show);
+        document.getElementById('refresh-icon').style.display = show ? 'none' : 'inline-block';
+    }
+
+    function fmtUptime(s) {
+        if (s < 60) return s + 's';
+        if (s < 3600) return Math.floor(s / 60) + 'm';
+        return Math.floor(s / 3600) + 'h ' + Math.floor((s % 3600) / 60) + 'm';
+    }
+</script>
+{% endblock %}

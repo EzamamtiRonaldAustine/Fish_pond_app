@@ -11,6 +11,7 @@ def create_app():
     from .routes.user_views import users_bp
     from .routes.proxy import proxy_bp
     from .routes.ml_routes import ml_bp
+    from .routes.control_views import control_views_bp
 
     app.register_blueprint(pages_bp)
     app.register_blueprint(dashboard_bp)
@@ -18,5 +19,6 @@ def create_app():
     app.register_blueprint(users_bp)
     app.register_blueprint(proxy_bp)
     app.register_blueprint(ml_bp)
+    app.register_blueprint(control_views_bp)
 
     return app

@@ -184,6 +184,10 @@
                             Devices</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('ml.ml_analysis') }}"><i
                                 class="bi bi-cpu"></i> ML Analysis</a></li>
+                    {% if session.get('user', {}).get('role') in ('admin', 'farmer') %}
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('control_views.control_page') }}"><i
+                                class="bi bi-sliders"></i> Control</a></li>
+                    {% endif %}
                     {% if session.get('user', {}).get('role') == 'admin' %}
                     <li class="nav-item"><a class="nav-link" href="/users"><i class="bi bi-people"></i> Users</a></li>
                     {% endif %}

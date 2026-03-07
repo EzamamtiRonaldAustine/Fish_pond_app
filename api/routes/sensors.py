@@ -4,12 +4,127 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from psycopg2.extras import RealDictCursor
 from datetime import datetime, timedelta
 import logging
+import os
 from ..database import get_db_connection
 from ..utils import get_user_from_token, check_device_access
 
 sensors_bp = Blueprint('sensors', __name__)
 logger = logging.getLogger(__name__)
 
+# Registration at /api -> routes start with /devices, /current-readings, or /sensors
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Raspberry Pi ingest: POST /api/sensors/readings
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _verify_device_key() -> bool:
+    """Validate X-Device-Key header against env var DEVICE_API_KEY."""
+    expected = os.environ.get("DEVICE_API_KEY", "")
+    return bool(expected) and expected == request.headers.get("X-Device-Key", "")
+
+
+@sensors_bp.route('/sensors/readings', methods=['POST'])
+def ingest_sensor_reading():
+    """
+    Receive a sensor snapshot from the Raspberry Pi hardware agent.
+
+    Authentication: X-Device-Key header (pre-shared secret).
+
+    Request body (JSON)
+    -------------------
+    {
+        "device_id":      1,
+        "temperature":    26.2,
+        "ph":             7.1,
+        "ec":             850.0,
+        "nitrogen":       112.0,
+        "phosphorus":     98.0,
+        "turbidity":      0,
+        "quality_score":  15,
+        "quality_status": "GOOD",
+        "alerts":         []
+    }
+
+    Response 201
+    ------------
+    { "message": "Reading stored", "reading_id": 42 }
+    """
+    if not _verify_device_key():
+        return jsonify({"error": "Invalid or missing device key"}), 401
+
+    body = request.get_json(silent=True) or {}
+    device_id = body.get("device_id")
+    if not device_id:
+        return jsonify({"error": "device_id is required"}), 400
+
+    # Validate quality_status
+    quality_status = str(body.get("quality_status", "GOOD")).upper()
+    if quality_status not in ("GOOD", "WARNING", "CRITICAL"):
+        quality_status = "GOOD"
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Database unavailable"}), 503
+
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        # Insert sensor reading
+        cur.execute(
+            """
+            INSERT INTO sensor_readings
+                (device_id, temperature, ph, ec, nitrogen, phosphorus,
+                 turbidity, quality_score, quality_status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+            """,
+            (
+                device_id,
+                body.get("temperature"),
+                body.get("ph"),
+                body.get("ec"),
+                body.get("nitrogen"),
+                body.get("phosphorus"),
+                bool(body.get("turbidity")),
+                body.get("quality_score"),
+                quality_status,
+            ),
+        )
+        row = cur.fetchone()
+        reading_id = row["id"] if row else None
+
+        # Auto-create an alert log entry for CRITICAL readings
+        if quality_status == "CRITICAL" and body.get("alerts"):
+            alert_message = "; ".join(body["alerts"][:3])
+            cur.execute(
+                """
+                INSERT INTO alerts
+                    (device_id, alert_type, severity, message)
+                VALUES (%s, %s, %s, %s)
+                """,
+                (device_id, "water_quality", "critical", alert_message[:500]),
+            )
+
+        # Bump device last_seen timestamp
+        cur.execute(
+            "UPDATE devices SET last_seen = NOW() WHERE id = %s",
+            (device_id,),
+        )
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        logger.info(
+            f"Sensor reading #{reading_id} stored for device {device_id} "
+            f"(status={quality_status})"
+        )
+        return jsonify({"message": "Reading stored", "reading_id": reading_id}), 201
+
+    except Exception as exc:
+        logger.error(f"Error storing sensor reading: {exc}")
+        return jsonify({"error": "Failed to store reading"}), 500
 # Registration at /api -> routes start with /devices or /current-readings
 
 @sensors_bp.route('/devices/<int:device_id>/current-readings', methods=['GET'])
