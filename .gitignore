@@ -5,14 +5,16 @@ __pycache__/
 .env
 .venv
 env/
-venv/
 *.db
 .DS_Store
 
 # .gitignore — put this in your project root
 
-# CRITICAL: Never commit these
+# Environment files (CRITICAL: Never commit these)
 .env
+.env.local
+.env.production
+.env.railway
 *.pem
 *.key
 *.crt
@@ -51,3 +53,22 @@ logs/
 # Testing
 .coverage
 htmlcov/
+
+# Railway and deployment
+railway-temp/
+*.tmp
+
+# Temporary and cache files
+*.tmp
+*.temp
+.cache/
+.pytest_cache/
+
+# Large data files
+*.xlsx
+*.xls
+!IoTPond6.xlsx  # Keep the sample data file
+
+# Backup files
+*.bak
+*.backup
