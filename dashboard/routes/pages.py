@@ -57,8 +57,11 @@ def signup_page():
         )
 
         if 'access_token' in result:
-            flash("Registration successful. Please log in.", "success")
-            return redirect(url_for("pages.login_page"))
+            # Auto-login new farmer and redirect to dashboard
+            session['token'] = result['access_token']
+            session['user'] = result.get('user')
+            flash("Registration successful. Welcome to your dashboard!", "success")
+            return redirect(url_for("dashboard.dashboard"))
 
         return render_template("signup.html", error=result.get("error", "Registration failed."))
 
