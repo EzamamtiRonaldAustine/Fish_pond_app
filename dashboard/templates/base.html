@@ -299,16 +299,11 @@
                     })
                     .then(data => {
                         if (!data.error && data.has_devices === false && data.user_role === 'farmer') {
-                            // Show modal and then redirect farmers without devices away from restricted pages
                             const modalElement = document.getElementById('noDeviceModal');
                             if (modalElement) {
                                 const modal = new bootstrap.Modal(modalElement);
                                 modal.show();
                             }
-                            // After a short delay, redirect to devices page where they can register/purchase
-                            setTimeout(function () {
-                                window.location.href = '/devices';
-                            }, 2500);
                         }
                     })
                     .catch(err => {

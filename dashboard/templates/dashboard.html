@@ -99,103 +99,110 @@
 
 <div id="api-error-container"></div>
 
-<div class="sensor-card mb-3">
-    <div class="d-flex justify-content-between align-items-center">
-        <h5 class="mb-0" id="selected-device-name">Select a device</h5>
-        <small class="text-muted">Last updated: <span id="last-update">--</span></small>
+<div id="monitoring-content" style="display: none;">
+    <div class="sensor-card mb-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0" id="selected-device-name">Select a device</h5>
+            <small class="text-muted">Last updated: <span id="last-update">--</span></small>
+        </div>
     </div>
-</div>
 
-<div class="sensor-card">
-    <div class="row text-center">
-        <div class="col-md-4">
-            <h5>Overall Status</h5>
-            <h2 id="overall-status">Loading...</h2>
-        </div>
-        <div class="col-md-4">
-            <h5>Quality Score</h5>
-            <h2 id="quality-score">--</h2>
-        </div>
-        <div class="col-md-4">
-            <h5>Data Points (24h)</h5>
-            <h2 id="data-count">--</h2>
-        </div>
-    </div>
-</div>
-
-<div class="row g-4 mb-4">
-    <div class="col-md-4">
-        <div class="sensor-card text-center">
-            <div class="sensor-label">Temperature</div>
-            <div class="sensor-value text-primary" id="temp-value">--</div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="sensor-card text-center">
-            <div class="sensor-label">pH Level</div>
-            <div class="sensor-value text-success" id="ph-value">--</div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="sensor-card text-center">
-            <div class="sensor-label">EC (μS/cm)</div>
-            <div class="sensor-value text-info" id="ec-value">--</div>
-        </div>
-    </div>
-</div>
-
-<div class="row g-4 mb-4">
-    <div class="col-md-4">
-        <div class="sensor-card text-center">
-            <div class="sensor-label">Nitrogen (mg/kg)</div>
-            <div class="sensor-value text-warning" id="nitrogen-value">--</div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="sensor-card text-center">
-            <div class="sensor-label">Phosphorus (mg/kg)</div>
-            <div class="sensor-value text-danger" id="phosphorus-value">--</div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="sensor-card text-center">
-            <div class="sensor-label">Turbidity</div>
-            <div class="sensor-value text-secondary" id="turbidity-value">--</div>
-        </div>
-    </div>
-</div>
-
-<!-- IMPROVED TRENDS CHART -->
-<div class="trends-chart-container">
-    <div class="chart-controls">
-        <div>
-            <h4 style="margin: 0;"><i class="bi bi-graph-up"></i> Recent Trends</h4>
-        </div>
-        <div style="display: flex; gap: 10px; align-items: center;">
-            <div class="time-range-selector">
-                <button class="active" onclick="changeTimeRange('6h', this)">6h</button>
-                <button onclick="changeTimeRange('24h', this)">24h</button>
-                <button onclick="changeTimeRange('7d', this)">7d</button>
+    <div class="sensor-card">
+        <div class="row text-center">
+            <div class="col-md-4">
+                <h5>Overall Status</h5>
+                <h2 id="overall-status">Loading...</h2>
             </div>
-            <div class="chart-mode-selector">
-                <button class="active" id="dual-mode-btn" onclick="setDashboardChartMode('dual')"
-                    title="Separate Y-axes">
-                    Smart Scale
-                </button>
-                <button id="overlay-mode-btn" onclick="setDashboardChartMode('overlay')" title="Same scale">
-                    Single Scale
-                </button>
+            <div class="col-md-4">
+                <h5>Quality Score</h5>
+                <h2 id="quality-score">--</h2>
+            </div>
+            <div class="col-md-4">
+                <h5>Data Points (24h)</h5>
+                <h2 id="data-count">--</h2>
             </div>
         </div>
     </div>
 
-    <div id="chart-loading" class="loading-chart" style="display: none;">
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Loading...</span>
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="sensor-card text-center">
+                <div class="sensor-label">Temperature</div>
+                <div class="sensor-value text-primary" id="temp-value">--</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="sensor-card text-center">
+                <div class="sensor-label">pH Level</div>
+                <div class="sensor-value text-success" id="ph-value">--</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="sensor-card text-center">
+                <div class="sensor-label">EC (μS/cm)</div>
+                <div class="sensor-value text-info" id="ec-value">--</div>
+            </div>
         </div>
     </div>
 
-    <canvas id="trendsChart"></canvas>
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="sensor-card text-center">
+                <div class="sensor-label">Nitrogen (mg/kg)</div>
+                <div class="sensor-value text-warning" id="nitrogen-value">--</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="sensor-card text-center">
+                <div class="sensor-label">Phosphorus (mg/kg)</div>
+                <div class="sensor-value text-danger" id="phosphorus-value">--</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="sensor-card text-center">
+                <div class="sensor-label">Turbidity</div>
+                <div class="sensor-value text-secondary" id="turbidity-value">--</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="trends-chart-container">
+        <div class="chart-controls">
+            <div>
+                <h4 style="margin: 0;"><i class="bi bi-graph-up"></i> Recent Trends</h4>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <div class="time-range-selector">
+                    <button class="active" onclick="changeTimeRange('6h', this)">6h</button>
+                    <button onclick="changeTimeRange('24h', this)">24h</button>
+                    <button onclick="changeTimeRange('7d', this)">7d</button>
+                </div>
+                <div class="chart-mode-selector">
+                    <button class="active" id="dual-mode-btn" onclick="setDashboardChartMode('dual')">Smart
+                        Scale</button>
+                    <button id="overlay-mode-btn" onclick="setDashboardChartMode('overlay')">Single Scale</button>
+                </div>
+            </div>
+        </div>
+        <div id="chart-loading" class="loading-chart" style="display: none;">
+            <div class="spinner-border text-primary" role="status"></div>
+        </div>
+        <canvas id="trendsChart"></canvas>
+    </div>
+</div>
+
+<div id="no-devices-welcome" style="display: none;">
+    <div class="sensor-card text-center py-5">
+        <i class="bi bi-water text-primary mb-4" style="font-size: 5rem;"></i>
+        <h3>Welcome to Fish Pond Monitor</h3>
+        <p class="text-muted mb-4">You haven't added any monitoring devices yet. Get started by purchasing or
+            registering a device.</p>
+        <div class="d-flex justify-content-center gap-3">
+            <a href="/devices" class="btn btn-primary btn-lg"><i class="bi bi-plus-circle"></i> Add My First Device</a>
+            <a href="/contact" class="btn btn-outline-secondary btn-lg"><i class="bi bi-telephone"></i> Contact
+                Support</a>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -252,8 +259,13 @@
                 if (devices.length === 0) {
                     document.getElementById('device-list').innerHTML =
                         '<p class="text-muted">No devices found</p>';
+                    document.getElementById('monitoring-content').style.display = 'none';
+                    document.getElementById('no-devices-welcome').style.display = 'block';
                     return;
                 }
+
+                document.getElementById('no-devices-welcome').style.display = 'none';
+                document.getElementById('monitoring-content').style.display = 'block';
 
                 document.getElementById('device-list').innerHTML = devices.map(function (d) {
                     const isActive = currentDeviceId === d.id ? 'active' : '';

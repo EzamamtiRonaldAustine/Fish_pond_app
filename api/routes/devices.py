@@ -27,6 +27,7 @@ def get_devices():
         cur = conn.cursor(cursor_factory=RealDictCursor)
         
         if user['role'] == 'admin':
+            # Admins see all devices
             cur.execute("""
                 SELECT d.*, 
                        o.name as organization_name,
@@ -46,13 +47,15 @@ def get_devices():
                 ORDER BY d.created_at DESC
             """)
         else:
+            # Farmers only see devices they have access to (via v_user_device_access view)
             cur.execute("""
                 SELECT d.*, 
                        o.name as organization_name,
                        u.username as owner_username,
                        u.full_name as owner_name,
                        sr.temperature, sr.ph, sr.quality_status
-                FROM devices d
+                FROM v_user_device_access v
+                JOIN devices d ON v.device_id = d.id
                 LEFT JOIN organizations o ON d.organization_id = o.id
                 LEFT JOIN users u ON d.created_by = u.id
                 LEFT JOIN LATERAL (
@@ -62,9 +65,9 @@ def get_devices():
                     ORDER BY timestamp DESC
                     LIMIT 1
                 ) sr ON true
-                WHERE d.organization_id = %s
+                WHERE v.user_id = %s
                 ORDER BY d.created_at DESC
-            """, (user['organization_id'],))
+            """, (user['id'],))
         
         devices = cur.fetchall()
         cur.close()

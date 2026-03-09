@@ -301,14 +301,15 @@ SELECT
         dp.permission_level, 
         CASE 
             WHEN u.role = 'admin' THEN 'owner'
-            WHEN u.organization_id = d.organization_id THEN 'owner'
+            WHEN d.created_by = u.id THEN 'owner'
             ELSE NULL
         END
     ) AS permission_level
 FROM users u
 LEFT JOIN devices d ON (
     u.role = 'admin' OR 
-    u.organization_id = d.organization_id
+    d.created_by = u.id OR
+    EXISTS (SELECT 1 FROM device_permissions dp2 WHERE dp2.user_id = u.id AND dp2.device_id = d.id)
 )
 LEFT JOIN device_permissions dp ON dp.user_id = u.id AND dp.device_id = d.id
 WHERE u.is_active = TRUE;
@@ -501,10 +502,21 @@ RETURNS BOOLEAN AS $$
 DECLARE
     device_count INTEGER;
 BEGIN
+    /*
+      A user "has devices" only if:
+        - they created the device (devices.created_by = user_id), or
+        - they have an explicit entry in device_permissions
+
+      Being in the same organization is no longer enough, so that new
+      farmers do not automatically see organization-wide demo devices.
+    */
     SELECT COUNT(*) INTO device_count
-    FROM devices
-    WHERE created_by = p_user_id
-       OR organization_id = (SELECT organization_id FROM users WHERE id = p_user_id);
+    FROM devices d
+    LEFT JOIN device_permissions dp 
+           ON dp.device_id = d.id 
+          AND dp.user_id = p_user_id
+    WHERE d.created_by = p_user_id
+       OR dp.user_id IS NOT NULL;
     
     RETURN device_count > 0;
 END;

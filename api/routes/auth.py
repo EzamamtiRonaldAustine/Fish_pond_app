@@ -152,20 +152,64 @@ def check_device_status():
         """, (user['id'],))
         result = cur.fetchone()
         
-        # Get device count
-        cur.execute("""
-            SELECT COUNT(*) as count
-            FROM devices
-            WHERE created_by = %s OR organization_id = %s
-        """, (user['id'], user['organization_id']))
-        count_result = cur.fetchone()
+        # Get device count and list based on user role
+        devices = []
+        device_count = 0
+        
+        if user['role'] == 'admin':
+            # Admins see all devices in their organization
+            cur.execute("""
+                SELECT 
+                    d.*,
+                    sr.ec, sr.nitrogen, sr.phosphorus, sr.turbidity,
+                    u.username as owner_username, u.full_name as owner_name
+                FROM devices d
+                LEFT JOIN users u ON d.created_by = u.id
+                LEFT JOIN LATERAL (
+                    SELECT ec, nitrogen, phosphorus, turbidity
+                    FROM sensor_readings
+                    WHERE device_id = d.id
+                    ORDER BY timestamp DESC
+                    LIMIT 1
+                ) sr ON true
+                WHERE d.organization_id = %s
+                ORDER BY d.created_at DESC
+            """, (user['organization_id'],))
+            devices = cur.fetchall()
+            device_count = len(devices)
+        else:
+            # Farmers only see devices they own or have explicit permissions for (via v_user_device_access view)
+            cur.execute("""
+                SELECT 
+                    d.*,
+                    sr.ec,
+                    sr.nitrogen,
+                    sr.phosphorus,
+                    sr.turbidity,
+                    u.username as owner_username,
+                    u.full_name as owner_name
+                FROM v_user_device_access v
+                JOIN devices d ON v.device_id = d.id
+                LEFT JOIN users u ON d.created_by = u.id
+                LEFT JOIN LATERAL (
+                    SELECT ec, nitrogen, phosphorus, turbidity
+                    FROM sensor_readings
+                    WHERE device_id = d.id
+                    ORDER BY timestamp DESC
+                    LIMIT 1
+                ) sr ON true
+                WHERE v.user_id = %s
+                ORDER BY d.created_at DESC
+            """, (user['id'],))
+            devices = cur.fetchall()
+            device_count = len(devices)
         
         cur.close()
         conn.close()
         
         return jsonify({
             'has_devices': result['has_devices'],
-            'device_count': count_result['count'],
+            'device_count': device_count,
             'user_role': user['role']
         }), 200
         
