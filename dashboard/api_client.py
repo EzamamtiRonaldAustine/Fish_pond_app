@@ -60,3 +60,14 @@ def login_api(username, password):
         'username': username,
         'password': password
     })
+
+
+def signup_api(username, password, email, full_name, organization_id):
+    """Public signup for farmer accounts."""
+    return call_api('/auth/signup', method='POST', data={
+        'username': username,
+        'password': password,
+        'email': email,
+        'full_name': full_name,
+        'organization_id': organization_id,
+    })

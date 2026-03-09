@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
-from ..api_client import login_api
+from ..api_client import login_api, signup_api
 
 pages_bp = Blueprint('pages', __name__)
 
@@ -35,10 +35,33 @@ def login_page():
 @pages_bp.route("/signup", methods=["GET", "POST"])
 def signup_page():
     if request.method == "POST":
-        # Signup logic is handled via API call in the frontend JS or here?
-        # The provided user code had JS fetch for signup.
-        # But for consistency, let's keep GET here.
-        pass
+        username = request.form.get("username")
+        email = request.form.get("email")
+        full_name = request.form.get("full_name")
+        organization_id = request.form.get("organization_id")
+        password = request.form.get("password")
+        confirm_password = request.form.get("confirm_password")
+
+        if not all([username, email, full_name, organization_id, password, confirm_password]):
+            return render_template("signup.html", error="All fields are required.")
+
+        if password != confirm_password:
+            return render_template("signup.html", error="Passwords do not match.")
+
+        result = signup_api(
+            username=username,
+            password=password,
+            email=email,
+            full_name=full_name,
+            organization_id=organization_id,
+        )
+
+        if 'access_token' in result:
+            flash("Registration successful. Please log in.", "success")
+            return redirect(url_for("pages.login_page"))
+
+        return render_template("signup.html", error=result.get("error", "Registration failed."))
+
     return render_template("signup.html")
 
 @pages_bp.route("/logout")

@@ -466,7 +466,7 @@ ALTER TABLE users
 
 ALTER TABLE users
     ADD CONSTRAINT users_email_check
-    CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}$');
+    CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$');
 
 ALTER TABLE users 
     ALTER COLUMN email SET NOT NULL;
