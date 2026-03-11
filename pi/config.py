@@ -5,15 +5,18 @@ All settings for the Smart Fish Pond Hardware Agent.
 Values are loaded from a .env file located in the same directory so no
 credentials are hard-coded in source control.
 
-Create a file called ``pi/.env`` (not committed to git) with the mandatory
-variables listed under MANDATORY SETTINGS below.
 """
 import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load .env from this script's directory (the pi/ folder on the Raspberry Pi)
+# Environment file priority: .env > .env.production > .env.example
 _ENV_FILE = Path(__file__).parent / ".env"
+if not _ENV_FILE.exists():
+    _ENV_FILE = Path(__file__).parent / ".env.production"
+if not _ENV_FILE.exists():
+    _ENV_FILE = Path(__file__).parent / ".env.example"
+
 load_dotenv(_ENV_FILE)
 
 # ==============================================================================
@@ -22,7 +25,7 @@ load_dotenv(_ENV_FILE)
 
 # Base URL of the Flask API server (no trailing slash)
 # Example: http://192.168.1.100:5000/api   or   https://mypond.example.com/api
-API_BASE_URL: str = os.getenv("API_BASE_URL", "http://127.0.0.1:5000/api")
+API_BASE_URL: str = os.getenv("API_BASE_URL", "https://fish-pond-api.up.railway.app/api")
 
 # Numeric database ID of this Raspberry Pi's device record in the `devices` table
 # Obtain this after running:  POST /api/devices  or checking the admin dashboard
@@ -30,7 +33,7 @@ DEVICE_DB_ID: int = int(os.getenv("DEVICE_DB_ID", "1"))
 
 # Pre-shared API key used to authenticate Pi ↔ API calls (no JWT needed on device)
 # Set this in the API's .env as   DEVICE_API_KEY=<same value>
-DEVICE_API_KEY: str = os.getenv("DEVICE_API_KEY", "CHANGE_ME_DEVICE_SECRET")
+DEVICE_API_KEY: str = os.getenv("DEVICE_API_KEY", "fab17ba24a660177b4cf4c6feb5a10e5ed23bd2f3fb0a8f7")
 
 # ==============================================================================
 # THINGSPEAK  (secondary cloud backup  — keeps existing dashboards working)
