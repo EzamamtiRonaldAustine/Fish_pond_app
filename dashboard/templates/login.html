@@ -1,9 +1,41 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-6">
-        <div class="sensor-card">
-            <h3 class="text-center mb-4">Login</h3>
+<div class="d-flex align-items-center justify-content-center" style="min-height: 80vh;">
+    <div class="col-11 col-sm-8 col-md-5 col-lg-4">
+        <div class="sensor-card shadow-lg border-0 p-4 p-md-5">
+            <div class="text-center mb-4">
+                <i class="bi bi-droplet-fill text-primary" style="font-size: 3rem;"></i>
+                <h2 class="fw-bold mt-2">Login</h2>
+                <p class="text-muted small">Access your Fish Pond Monitor</p>
+            </div>
+
+
+            {% if error %}
+            <div class="alert alert-danger border-0 small py-2">{{ error }}</div>
+            {% endif %}
+
+            <form method="post">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Username</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-0"><i class="bi bi-person"></i></span>
+                        <input type="text" name="username" class="form-control bg-light border-0" placeholder="Enter username" required>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label small fw-bold">Password</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-0"><i class="bi bi-lock"></i></span>
+                        <input type="password" name="password" class="form-control bg-light border-0" placeholder="Enter password" required>
+                    </div>
+                    <div class="text-end mt-2">
+                        <a href="/forgot-password" class="text-decoration-none small">Forgot Password?</a>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 py-2 fw-bold shadow-sm">Sign In</button>
+            </form>
+
+            <div class="my-4"></div>
 
             <!-- Google Sign-In -->
             <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -11,31 +43,10 @@
                 data-auto_prompt="false">
             </div>
             <div class="g_id_signin w-100 mb-3" data-type="standard" data-shape="rectangular" data-theme="outline"
-                data-text="signin_with" data-size="large" data-logo_alignment="left"></div>
+                data-text="signin_with" data-size="large" data-logo_alignment="center"></div>
 
-            <div class="text-center mb-3">
-                <span class="text-muted small">or use your username</span>
-            </div>
-
-            {% if error %}
-            <div class="alert alert-danger">{{ error }}</div>
-            {% endif %}
-            <form method="post">
-                <div class="mb-3">
-                    <label>Username</label>
-                    <input type="text" name="username" class="form-control" required>
-                </div>
-                <div class="mb-3">
-                    <label>Password</label>
-                    <input type="password" name="password" class="form-control" required>
-                </div>
-                <button type="submit" class="btn btn-primary w-100">Login</button>
-                <div class="text-center mt-3">
-                    <a href="/forgot-password" class="text-decoration-none small">Forgot Password?</a>
-                </div>
-            </form>
-            <p class="text-muted mt-3 text-center">
-                Default: admin / admin123
+            <p class="text-muted mt-4 text-center small">
+                New here? <a href="/signup" class="text-decoration-none fw-bold">Create an account</a>
             </p>
         </div>
     </div>

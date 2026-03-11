@@ -1,66 +1,87 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="sensor-card">
-            <h3 class="text-center mb-4">Create Farmer Account</h3>
+<div class="d-flex align-items-center justify-content-center" style="min-height: 80vh; padding: 40px 0;">
+    <div class="col-11 col-sm-10 col-md-8 col-lg-6">
+        <div class="sensor-card shadow-lg border-0 p-4 p-md-5">
+            <div class="text-center mb-4">
+                <i class="bi bi-person-plus-fill text-success" style="font-size: 3rem;"></i>
+                <h2 class="fw-bold mt-2">Create Farmer Account</h2>
+                <p class="text-muted small">Join the AquaGuardian community</p>
+            </div>
+
+            {% if error %}
+            <div class="alert alert-danger border-0 small py-2">{{ error }}</div>
+            {% endif %}
+
+            <form method="post" id="signup-form">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Username *</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-0"><i class="bi bi-person"></i></span>
+                            <input type="text" name="username" class="form-control bg-light border-0" placeholder="Unique username" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Email *</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-0"><i class="bi bi-envelope"></i></span>
+                            <input type="email" name="email" class="form-control bg-light border-0" placeholder="example@gmail.com" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Phone Number *</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-0"><i class="bi bi-phone"></i></span>
+                            <input type="tel" name="phone" class="form-control bg-light border-0" placeholder="07XXXXXXXX" pattern="[0-9]{10}" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Organization *</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-0"><i class="bi bi-building"></i></span>
+                            <select name="organization_id" class="form-select bg-light border-0" required id="org-select">
+                                <option value="">Loading...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label small fw-bold">Full Name *</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-0"><i class="bi bi-card-text"></i></span>
+                            <input type="text" name="full_name" class="form-control bg-light border-0" placeholder="Your full name" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Password *</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-0"><i class="bi bi-shield-lock"></i></span>
+                            <input type="password" name="password" class="form-control bg-light border-0" minlength="6" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Confirm Password *</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-0"><i class="bi bi-shield-check"></i></span>
+                            <input type="password" name="confirm_password" class="form-control bg-light border-0" minlength="6" required>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-success w-100 mt-4 py-2 fw-bold shadow-sm">Register Account</button>
+            </form>
+
+            <div class="my-4"></div>
 
             <!-- Google Sign-In -->
             <script src="https://accounts.google.com/gsi/client" async defer></script>
             <div id="g_id_onload" data-client_id="{{ google_client_id }}" data-callback="handleCredentialResponse"
                 data-auto_prompt="false">
             </div>
-            <div class="g_id_signin w-100 mb-4" data-type="standard" data-shape="rectangular" data-theme="outline"
-                data-text="signup_with" data-size="large" data-logo_alignment="left"></div>
+            <div class="g_id_signin w-100 mb-3" data-type="standard" data-shape="rectangular" data-theme="outline"
+                data-text="signup_with" data-size="large" data-logo_alignment="center"></div>
 
-            <div class="text-center mb-4">
-                <span class="text-muted small">or register manually</span>
-            </div>
-
-            {% if error %}
-            <div class="alert alert-danger">{{ error }}</div>
-            {% endif %}
-            <form method="post" id="signup-form">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label">Username *</label>
-                        <input type="text" name="username" class="form-control" required>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Email *</label>
-                        <input type="email" name="email" class="form-control" placeholder="example@gmail.com" required>
-                        <small class="text-muted">Use a valid email (e.g., @gmail.com, @outlook.com)</small>
-                    </div>
-                    <div class="col-md-12">
-                        <label class="form-label">Phone Number (10 digits) *</label>
-                        <input type="tel" name="phone" class="form-control" placeholder="07XXXXXXXX" pattern="[0-9]{10}"
-                            required title="Please enter a 10-digit phone number">
-                        <small class="text-muted">Format: 07XXXXXXXX</small>
-                    </div>
-                    <div class="col-md-12">
-                        <label class="form-label">Full Name *</label>
-                        <input type="text" name="full_name" class="form-control" required>
-                    </div>
-                    <div class="col-md-12">
-                        <label class="form-label">Organization *</label>
-                        <select name="organization_id" class="form-select" required id="org-select">
-                            <option value="">Loading organizations...</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Password *</label>
-                        <input type="password" name="password" class="form-control" minlength="6" required>
-                        <small class="text-muted">Minimum 6 characters</small>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Confirm Password *</label>
-                        <input type="password" name="confirm_password" class="form-control" minlength="6" required>
-                    </div>
-                </div>
-                <button type="submit" class="btn btn-success w-100 mt-3">Create Account</button>
-            </form>
-            <p class="text-center mt-3">
-                Already have an account? <a href="/login">Login here</a>
+            <p class="text-center mt-4 small text-muted">
+                Already have an account? <a href="/login" class="text-decoration-none fw-bold">Login here</a>
             </p>
         </div>
     </div>
