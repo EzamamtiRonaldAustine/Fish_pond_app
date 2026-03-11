@@ -188,3 +188,58 @@ def create_device():
     except Exception as e:
         logger.error(f"Error creating device: {e}")
         return jsonify({'error': 'Failed to create device'}), 500
+
+@devices_bp.route('/devices/assign', methods=['POST'])
+@jwt_required()
+def assign_device():
+    """Assign a device to a user (admin only)."""
+    try:
+        admin_user = get_user_from_token()
+        if not admin_user or admin_user['role'] != 'admin':
+            return jsonify({'error': 'Insufficient permissions'}), 403
+        
+        data = request.get_json()
+        required = ['user_id', 'device_id']
+        if not all(field in data for field in required):
+            return jsonify({'error': 'Missing required fields: user_id, device_id'}), 400
+        
+        user_id = data['user_id']
+        device_id = data['device_id']
+        permission_level = data.get('permission_level', 'viewer')
+        
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'Database unavailable'}), 503
+        
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Verify user and device exist
+        cur.execute("SELECT id FROM users WHERE id = %s", (user_id,))
+        if not cur.fetchone():
+            cur.close()
+            conn.close()
+            return jsonify({'error': 'User not found'}), 404
+            
+        cur.execute("SELECT id FROM devices WHERE id = %s", (device_id,))
+        if not cur.fetchone():
+            cur.close()
+            conn.close()
+            return jsonify({'error': 'Device not found'}), 404
+            
+        # Assign device
+        cur.execute("""
+            INSERT INTO device_permissions (user_id, device_id, permission_level, granted_by)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (user_id, device_id) 
+            DO UPDATE SET permission_level = EXCLUDED.permission_level, granted_at = NOW()
+        """, (user_id, device_id, permission_level, admin_user['id']))
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        return jsonify({'message': 'Device assigned successfully'}), 200
+        
+    except Exception as e:
+        logger.error(f"Error assigning device: {e}")
+        return jsonify({'error': 'Failed to assign device'}), 500

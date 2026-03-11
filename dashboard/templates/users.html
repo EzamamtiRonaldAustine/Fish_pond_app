@@ -69,6 +69,46 @@
     </div>
 </div>
 
+<!-- Assign Device Modal -->
+<div class="modal fade" id="assignDeviceModal" tabindex="-1" aria-labelledby="assignDeviceModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-white border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title" id="assignDeviceModalLabel">Assign Device to <span
+                        id="assign-target-username"></span></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="assign-device-form">
+                    <input type="hidden" id="assign-user-id" name="user_id">
+                    <div class="mb-3">
+                        <label class="form-label">Select Device</label>
+                        <select class="form-select bg-dark text-white border-secondary" name="device_id"
+                            id="device-select" required>
+                            <option value="">Loading devices...</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Permission Level</label>
+                        <select class="form-select bg-dark text-white border-secondary" name="permission_level">
+                            <option value="viewer">Viewer</option>
+                            <option value="editor">Editor</option>
+                            <option value="owner">Owner</option>
+                        </select>
+                    </div>
+                    <div id="assign-message"></div>
+                    <div class="mt-3 d-flex justify-content-end">
+                        <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Assign Device</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endif %}
 {% endblock %}
 
@@ -205,9 +245,14 @@
                                 <td>${u.last_login ? new Date(u.last_login).toLocaleDateString() : 'Never'}</td>
                                 <td><span class="badge bg-${u.is_active ? 'success' : 'secondary'}">${u.is_active ? 'Active' : 'Inactive'}</span></td>
                                 <td>
-                                    <button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id}, '${u.username}')">
-                                        <i class="bi bi-trash"></i> Delete
-                                    </button>
+                                    <div class="btn-group">
+                                        <button class="btn btn-sm btn-outline-primary" onclick="openAssignModal(${u.id}, '${u.username}')">
+                                            <i class="bi bi-link"></i> Assign
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteUser(${u.id}, '${u.username}')">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         `).join('')}
@@ -271,6 +316,68 @@
             `;
             });
     }
+
+    // Assignment Logic
+    let allDevices = [];
+    async function loadDevicesForSelect() {
+        try {
+            const response = await fetch('/api-proxy/devices');
+            const data = await response.json();
+            allDevices = data.devices || [];
+            const select = document.getElementById('device-select');
+            if (allDevices.length === 0) {
+                select.innerHTML = '<option value="">No devices available</option>';
+            } else {
+                select.innerHTML = '<option value="">-- Select a Device --</option>' +
+                    allDevices.map(d => `<option value="${d.id}">${d.name} (${d.device_id})</option>`).join('');
+            }
+        } catch (error) {
+            console.error('Error loading devices:', error);
+        }
+    }
+
+    window.openAssignModal = function (userId, username) {
+        document.getElementById('assign-user-id').value = userId;
+        document.getElementById('assign-target-username').innerText = username;
+        document.getElementById('assign-message').innerHTML = '';
+        loadDevicesForSelect();
+        const modal = new bootstrap.Modal(document.getElementById('assignDeviceModal'));
+        modal.show();
+    };
+
+    document.getElementById('assign-device-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
+        data.user_id = parseInt(data.user_id);
+        data.device_id = parseInt(data.device_id);
+
+        try {
+            const response = await fetch('/api-proxy/devices/assign', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                document.getElementById('assign-message').innerHTML =
+                    '<div class="alert alert-success mt-2">Device assigned successfully!</div>';
+                setTimeout(() => {
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('assignDeviceModal'));
+                    modal.hide();
+                    loadUsers();
+                }, 1500);
+            } else {
+                document.getElementById('assign-message').innerHTML =
+                    `<div class="alert alert-danger mt-2">Error: ${result.error}</div>`;
+            }
+        } catch (error) {
+            document.getElementById('assign-message').innerHTML =
+                `<div class="alert alert-danger mt-2">Failed: ${error.message}</div>`;
+        }
+    });
 
     loadUsers();
     loadDeletedUsers();

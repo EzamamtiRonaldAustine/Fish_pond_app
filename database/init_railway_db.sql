@@ -490,10 +490,14 @@ SELECT
     u.is_active,
     u.created_at,
     u.last_login,
-    COUNT(d.id) AS device_count
+    (
+        SELECT COUNT(DISTINCT d.id)
+        FROM devices d
+        LEFT JOIN device_permissions dp ON dp.device_id = d.id AND dp.user_id = u.id
+        WHERE d.created_by = u.id OR dp.user_id IS NOT NULL
+    ) AS device_count
 FROM users u
 LEFT JOIN organizations o ON u.organization_id = o.id
-LEFT JOIN devices d       ON d.created_by      = u.id
 GROUP BY u.id, o.name
 ORDER BY u.created_at DESC;
 
