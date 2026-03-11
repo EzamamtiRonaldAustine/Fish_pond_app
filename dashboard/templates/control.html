@@ -963,6 +963,9 @@
 
     async function executeQueued() {
         if (!queuedCommand || !currentDeviceId) { closeConfirm(); return; }
+        
+        const cmd = queuedCommand;
+        const params = queuedParams;
         closeConfirm();
 
         setControlsDisabled(true);
@@ -971,11 +974,11 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
-                body: JSON.stringify({ command: queuedCommand, parameters: queuedParams }),
+                body: JSON.stringify({ command: cmd, parameters: params }),
             });
             const d = await r.json();
             if (r.ok) {
-                showToast('success', 'Command Queued', `${queuedCommand} queued (#${d.command_id}). Pi will execute shortly.`);
+                showToast('success', 'Command Queued', `${cmd} queued (#${d.command_id}). Pi will execute shortly.`);
                 setTimeout(loadCommandHistory, 2000);
             } else {
                 showToast('error', 'Command Failed', d.error || 'Unknown error');

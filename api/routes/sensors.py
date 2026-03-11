@@ -103,7 +103,7 @@ def ingest_sensor_reading():
                     (device_id, alert_type, severity, message)
                 VALUES (%s, %s, %s, %s)
                 """,
-                (device_id, "water_quality", "critical", alert_message[:500]),
+                (device_id, "water_quality", "CRITICAL", alert_message[:500]),
             )
 
         # Bump device last_seen timestamp

@@ -536,6 +536,8 @@ class HardwareController:
             except Exception:
                 pass
 
+        self._led_status_str = quality_status
+
         if quality_status == "GOOD":
             self._set_leds(1, 0, 0)   # Blue LED = GOOD
         elif quality_status == "WARNING":
@@ -809,13 +811,17 @@ class ThingSpeakClient:
         try:
             resp = requests.get(CFG.THINGSPEAK_URL, params=payload, timeout=10)
             result = resp.text.strip()
-            if resp.status_code == 200 and result.isdigit() and int(result) > 0:
-                self._last_sent = now
-                self._ok = True
-                logger.info(f"☁️  ThingSpeak entry {result} saved")
-                return True
+            if resp.status_code == 200 and result.isdigit():
+                entry_id = int(result)
+                if entry_id > 0:
+                    self._last_sent = now
+                    self._ok = True
+                    logger.info(f"☁️  ThingSpeak entry {result} saved")
+                    return True
+                else:
+                    logger.warning(f"ThingSpeak error: Key rejection or rate limit (Response: {result})")
             else:
-                logger.warning(f"ThingSpeak response: {result}")
+                logger.warning(f"ThingSpeak unexpected response: {result} (HTTP {resp.status_code})")
         except Exception as exc:
             logger.error(f"ThingSpeak POST failed: {exc}")
 
