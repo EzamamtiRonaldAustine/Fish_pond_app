@@ -4,6 +4,19 @@
     <div class="col-md-8">
         <div class="sensor-card">
             <h3 class="text-center mb-4">Create Farmer Account</h3>
+
+            <!-- Google Sign-In -->
+            <script src="https://accounts.google.com/gsi/client" async defer></script>
+            <div id="g_id_onload" data-client_id="{{ google_client_id }}" data-callback="handleCredentialResponse"
+                data-auto_prompt="false">
+            </div>
+            <div class="g_id_signin w-100 mb-4" data-type="standard" data-shape="rectangular" data-theme="outline"
+                data-text="signup_with" data-size="large" data-logo_alignment="left"></div>
+
+            <div class="text-center mb-4">
+                <span class="text-muted small">or register manually</span>
+            </div>
+
             {% if error %}
             <div class="alert alert-danger">{{ error }}</div>
             {% endif %}
@@ -17,6 +30,12 @@
                         <label class="form-label">Email *</label>
                         <input type="email" name="email" class="form-control" placeholder="example@gmail.com" required>
                         <small class="text-muted">Use a valid email (e.g., @gmail.com, @outlook.com)</small>
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label">Phone Number (10 digits) *</label>
+                        <input type="tel" name="phone" class="form-control" placeholder="07XXXXXXXX" pattern="[0-9]{10}"
+                            required title="Please enter a 10-digit phone number">
+                        <small class="text-muted">Format: 07XXXXXXXX</small>
                     </div>
                     <div class="col-md-12">
                         <label class="form-label">Full Name *</label>
@@ -50,6 +69,29 @@
 
 {% block extra_js %}
 <script>
+    async function handleCredentialResponse(response) {
+        try {
+            const r = await fetch('/api-proxy/auth/google', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ credential: response.credential })
+            });
+            const data = await r.json();
+
+            if (r.ok) {
+                if (data.access_token) {
+                    localStorage.setItem('access_token', data.access_token);
+                }
+                location.href = '/';
+            } else {
+                alert('Google signup failed: ' + (data.error || 'Unknown error'));
+            }
+        } catch (err) {
+            console.error('Google signup error:', err);
+            alert('Failed to connect to server');
+        }
+    }
+
     // Load organizations for dropdown
     fetch('/api-proxy/organizations/list')
         .then(r => r.json())

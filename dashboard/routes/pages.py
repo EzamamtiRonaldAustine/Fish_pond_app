@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from ..api_client import login_api, signup_api
+import os
 
 pages_bp = Blueprint('pages', __name__)
 
@@ -28,9 +29,11 @@ def login_page():
             session['user'] = result['user']
             return redirect(url_for('dashboard.dashboard'))
         else:
-            return render_template("login.html", error=result.get('error', 'Login failed'))
+            return render_template("login.html", 
+                                 error=result.get('error', 'Login failed'),
+                                 google_client_id=os.environ.get("GOOGLE_CLIENT_ID"))
             
-    return render_template("login.html")
+    return render_template("login.html", google_client_id=os.environ.get("GOOGLE_CLIENT_ID"))
 
 @pages_bp.route("/signup", methods=["GET", "POST"])
 def signup_page():
@@ -63,11 +66,17 @@ def signup_page():
             flash("Registration successful. Welcome to your dashboard!", "success")
             return redirect(url_for("dashboard.dashboard"))
 
-        return render_template("signup.html", error=result.get("error", "Registration failed."))
+        return render_template("signup.html", 
+                             error=result.get("error", "Registration failed."),
+                             google_client_id=os.environ.get("GOOGLE_CLIENT_ID"))
 
-    return render_template("signup.html")
+    return render_template("signup.html", google_client_id=os.environ.get("GOOGLE_CLIENT_ID"))
 
 @pages_bp.route("/logout")
 def logout():
     session.clear()
     return redirect(url_for('pages.home'))
+
+@pages_bp.route("/forgot-password")
+def forgot_password():
+    return render_template("forgot_password.html")

@@ -4,6 +4,19 @@
     <div class="col-md-6">
         <div class="sensor-card">
             <h3 class="text-center mb-4">Login</h3>
+
+            <!-- Google Sign-In -->
+            <script src="https://accounts.google.com/gsi/client" async defer></script>
+            <div id="g_id_onload" data-client_id="{{ google_client_id }}" data-callback="handleCredentialResponse"
+                data-auto_prompt="false">
+            </div>
+            <div class="g_id_signin w-100 mb-3" data-type="standard" data-shape="rectangular" data-theme="outline"
+                data-text="signin_with" data-size="large" data-logo_alignment="left"></div>
+
+            <div class="text-center mb-3">
+                <span class="text-muted small">or use your username</span>
+            </div>
+
             {% if error %}
             <div class="alert alert-danger">{{ error }}</div>
             {% endif %}
@@ -17,6 +30,9 @@
                     <input type="password" name="password" class="form-control" required>
                 </div>
                 <button type="submit" class="btn btn-primary w-100">Login</button>
+                <div class="text-center mt-3">
+                    <a href="/forgot-password" class="text-decoration-none small">Forgot Password?</a>
+                </div>
             </form>
             <p class="text-muted mt-3 text-center">
                 Default: admin / admin123
@@ -24,4 +40,31 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    async function handleCredentialResponse(response) {
+        try {
+            const r = await fetch('/api-proxy/auth/google', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ credential: response.credential })
+            });
+            const data = await r.json();
+
+            if (r.ok) {
+                if (data.access_token) {
+                    localStorage.setItem('access_token', data.access_token);
+                }
+                location.href = '/';
+            } else {
+                alert('Google login failed: ' + (data.error || 'Unknown error'));
+            }
+        } catch (err) {
+            console.error('Google login error:', err);
+            alert('Failed to connect to login server');
+        }
+    }
+</script>
 {% endblock %}

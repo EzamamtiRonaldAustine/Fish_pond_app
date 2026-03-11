@@ -4,12 +4,249 @@ from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identi
 from werkzeug.security import generate_password_hash, check_password_hash
 from ..database import get_db_connection
 from psycopg2.extras import RealDictCursor
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
+import os
 from ..utils import get_user_from_token, require_role
+from ..mail_utils import generate_otp, send_otp_email
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 
 auth_bp = Blueprint('auth', __name__)
 logger = logging.getLogger(__name__)
+
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
+
+@auth_bp.route('/google', methods=['POST'])
+def google_login():
+    """Verify Google ID token and login/register user."""
+    try:
+        data = request.get_json()
+        token = data.get('credential')
+        
+        if not token:
+            return jsonify({'error': 'Google token required'}), 400
+            
+        # Verify token
+        try:
+            idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), GOOGLE_CLIENT_ID)
+            
+            # ID token is valid. Get user's Google ID from the decoded token.
+            google_id = idinfo['sub']
+            email = idinfo['email']
+            name = idinfo.get('name', '')
+            
+        except ValueError as e:
+            logger.error(f"Invalid Google token: {e}")
+            return jsonify({'error': 'Invalid Google token'}), 401
+            
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # 1. Check if user exists by google_id
+        cur.execute("SELECT * FROM users WHERE google_id = %s", (google_id,))
+        user = cur.fetchone()
+        
+        # 2. If not, check by email
+        if not user:
+            cur.execute("SELECT * FROM users WHERE email = %s", (email,))
+            user = cur.fetchone()
+            
+            if user:
+                # Link account
+                cur.execute("UPDATE users SET google_id = %s WHERE id = %s", (google_id, user['id']))
+                conn.commit()
+            else:
+                # 3. Create new user (default to farmer role)
+                # For Google users, we might not have an organization_id yet. 
+                # We'll pick the first organization as default or ask user later.
+                cur.execute("SELECT id FROM organizations LIMIT 1")
+                org = cur.fetchone()
+                org_id = org['id'] if org else 1
+                
+                username = email.split('@')[0]
+                cur.execute("""
+                    INSERT INTO users (username, email, full_name, google_id, role, organization_id)
+                    VALUES (%s, %s, %s, %s, 'farmer', %s)
+                    RETURNING *
+                """, (username, email, name, google_id, org_id))
+                user = cur.fetchone()
+                conn.commit()
+        
+        # Create access token
+        access_token = create_access_token(
+            identity=user['username'],
+            additional_claims={
+                'role': user['role'],
+                'organization_id': user['organization_id']
+            }
+        )
+        
+        cur.close()
+        conn.close()
+        
+        return jsonify({
+            'access_token': access_token,
+            'user': {
+                'id': user['id'],
+                'username': user['username'],
+                'email': user['email'],
+                'full_name': user['full_name'],
+                'role': user['role'],
+                'organization_id': user['organization_id']
+            }
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Google login error: {e}")
+        return jsonify({'error': 'Google login failed'}), 500
+
+# ... existing code ...
+
+@auth_bp.route('/reset-request', methods=['POST'])
+def reset_password_request():
+    """Initial step: Send 6-digit OTP to user's email."""
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        
+        if not email:
+            return jsonify({'error': 'Email is required'}), 400
+            
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'Database unavailable'}), 503
+            
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Verify user exists
+        cur.execute("SELECT id, username FROM users WHERE email = %s AND is_active = TRUE", (email,))
+        user = cur.fetchone()
+        
+        if not user:
+            # For security, don't confirm if email exists, just say "If registered..."
+            return jsonify({'message': 'If the email is registered, a code has been sent.'}), 200
+            
+        # Generate OTP
+        otp_code = generate_otp()
+        expires_at = datetime.now() + timedelta(minutes=10)
+        
+        # Save OTP to database
+        cur.execute("""
+            INSERT INTO otp_verifications (user_id, otp_code, expires_at)
+            VALUES (%s, %s, %s)
+        """, (user['id'], otp_code, expires_at))
+        
+        conn.commit()
+        
+        # Send Email
+        email_sent = send_otp_email(email, otp_code)
+        
+        if not email_sent:
+            return jsonify({'error': 'Failed to send verification email. Please contact support.'}), 500
+            
+        return jsonify({'message': 'A 6-digit verification code has been sent to your email.'}), 200
+        
+    except Exception as e:
+        logger.error(f"Error in reset-request: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+    finally:
+        if 'conn' in locals() and conn:
+            cur.close()
+            conn.close()
+
+@auth_bp.route('/reset-verify', methods=['POST'])
+def reset_password_verify():
+    """Step 2: Verify the 6-digit code."""
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        otp_code = data.get('otp_code')
+        
+        if not email or not otp_code:
+            return jsonify({'error': 'Email and OTP code are required'}), 400
+            
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cur.execute("""
+            SELECT v.id, v.user_id 
+            FROM otp_verifications v
+            JOIN users u ON v.user_id = u.id
+            WHERE u.email = %s 
+              AND v.otp_code = %s 
+              AND v.is_used = FALSE 
+              AND v.expires_at > NOW()
+            ORDER BY v.created_at DESC LIMIT 1
+        """, (email, otp_code))
+        
+        verification = cur.fetchone()
+        
+        if not verification:
+            return jsonify({'error': 'Invalid or expired verification code'}), 400
+            
+        return jsonify({'message': 'Code verified', 'email': email, 'otp_code': otp_code}), 200
+        
+    except Exception as e:
+        logger.error(f"Error in reset-verify: {e}")
+        return jsonify({'error': 'Verification failed'}), 500
+    finally:
+        if 'conn' in locals() and conn:
+            cur.close()
+            conn.close()
+
+@auth_bp.route('/reset-confirm', methods=['POST'])
+def reset_password_confirm():
+    """Step 3: Set new password using verified OTP."""
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        otp_code = data.get('otp_code')
+        new_password = data.get('password')
+        
+        if not all([email, otp_code, new_password]):
+            return jsonify({'error': 'Missing required fields'}), 400
+            
+        if len(new_password) < 6:
+            return jsonify({'error': 'Password must be at least 6 characters'}), 400
+            
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Re-verify one last time
+        cur.execute("""
+            SELECT v.id, v.user_id 
+            FROM otp_verifications v
+            JOIN users u ON v.user_id = u.id
+            WHERE u.email = %s 
+              AND v.otp_code = %s 
+              AND v.is_used = FALSE 
+              AND v.expires_at > NOW()
+            ORDER BY v.created_at DESC LIMIT 1
+        """, (email, otp_code))
+        
+        verification = cur.fetchone()
+        
+        if not verification:
+            return jsonify({'error': 'Verification expired. Please start over.'}), 400
+            
+        # Update Password
+        password_hash = generate_password_hash(new_password, method='pbkdf2:sha256')
+        cur.execute("UPDATE users SET password_hash = %s WHERE id = %s", (password_hash, verification['user_id']))
+        
+        # Mark OTP as used
+        cur.execute("UPDATE otp_verifications SET is_used = TRUE WHERE id = %s", (verification['id'],))
+        
+        conn.commit()
+        return jsonify({'message': 'Password reset successfully. You can now login.'}), 200
+        
+    except Exception as e:
+        logger.error(f"Error in reset-confirm: {e}")
+        return jsonify({'error': 'Reset failed'}), 500
+    finally:
+        if 'conn' in locals() and conn:
+            cur.close()
+            conn.close()
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
@@ -242,19 +479,24 @@ def register_user():
         password_hash = generate_password_hash(data['password'], method='pbkdf2:sha256')
         org_id = data.get('organization_id', user['organization_id'])
         
+        phone = data.get('phone')
+        if phone and (not phone.isdigit() or len(phone) != 10):
+            return jsonify({'error': 'Phone number must be exactly 10 digits'}), 400
+
         cur.execute("""
             INSERT INTO users (
                 username, password_hash, email, full_name, 
-                role, organization_id, created_at
-            ) VALUES (%s, %s, %s, %s, %s, %s, NOW())
-            RETURNING id, username, email, full_name, role, organization_id
+                role, organization_id, phone, created_at
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+            RETURNING id, username, email, full_name, role, organization_id, phone
         """, (
             data['username'],
             password_hash,
             data['email'],
             data['full_name'],
             data['role'],
-            org_id
+            org_id,
+            phone
         ))
         
         new_user = cur.fetchone()
@@ -337,17 +579,22 @@ def public_signup():
             conn.close()
             return jsonify({'error': 'Invalid organization ID'}), 400
         
+        phone = data.get('phone')
+        if phone and (not phone.isdigit() or len(phone) != 10):
+            return jsonify({'error': 'Phone number must be exactly 10 digits'}), 400
+
         cur.execute("""
             INSERT INTO users (
-                username, password_hash, email, full_name, 
+                username, password_hash, email, full_name, phone,
                 role, organization_id, created_at
-            ) VALUES (%s, %s, %s, %s, 'farmer', %s, NOW())
-            RETURNING id, username, email, full_name, role, organization_id
+            ) VALUES (%s, %s, %s, %s, %s, 'farmer', %s, NOW())
+            RETURNING id, username, email, full_name, role, organization_id, phone
         """, (
             data['username'],
             password_hash,
             data['email'],
             data['full_name'],
+            phone,
             data['organization_id']
         ))
         
