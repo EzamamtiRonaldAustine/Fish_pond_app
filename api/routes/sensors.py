@@ -7,6 +7,7 @@ import logging
 import os
 from ..database import get_db_connection
 from ..utils import get_user_from_token, check_device_access
+from ..predict import predict_water_quality
 
 sensors_bp = Blueprint('sensors', __name__)
 logger = logging.getLogger(__name__)
@@ -58,8 +59,35 @@ def ingest_sensor_reading():
     if not device_id:
         return jsonify({"error": "device_id is required"}), 400
 
-    # Validate quality_status
+    # Hardware sends rule-based fallback status; we try to override it with AI
     quality_status = str(body.get("quality_status", "GOOD")).upper()
+    
+    # ── AI Assessment (ML 2 Integration) ─────────────────────────
+    try:
+        if all(k in body for k in ("temperature", "ph", "nitrogen", "phosphorus")):
+            # Nitrogen naturally routes to 'nitrite' in predict.py adapter
+            assessment = predict_water_quality(
+                temperature=float(body["temperature"]),
+                ph=float(body["ph"]),
+                nitrite=float(body["nitrogen"]),  
+                phosphorus=float(body["phosphorus"])
+            )
+            # Override hardware's rule-base with actual ML 2 label (Excellent/Good/Poor)
+            ai_label = assessment.get("quality_label", "").upper()
+            if ai_label:
+                quality_status = ai_label
+                logger.info(f"AI Override: Hardware reported {body.get('quality_status')} -> ML assessed {ai_label}")
+    except Exception as ml_err:
+        logger.error(f"ML Inference failed on sensor ingest, falling back to hardware status: {ml_err}")
+    # ─────────────────────────────────────────────────────────────
+
+    # Enforce known states (note: Excellent replaces Good in ML terminology, but DB expects Good/Warning/Critical)
+    # Map the ML labels back to the UI / DB standard expectations to prevent DB constraint errors
+    if quality_status == "EXCELLENT":
+        quality_status = "GOOD"
+    elif quality_status == "POOR":
+        quality_status = "CRITICAL"
+        
     if quality_status not in ("GOOD", "WARNING", "CRITICAL"):
         quality_status = "GOOD"
 
@@ -75,8 +103,8 @@ def ingest_sensor_reading():
             """
             INSERT INTO sensor_readings
                 (device_id, temperature, ph, ec, nitrogen, phosphorus,
-                 turbidity, quality_score, quality_status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                 turbidity, quality_score, quality_status, ai_quality_label)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
             """,
             (
@@ -89,6 +117,7 @@ def ingest_sensor_reading():
                 bool(body.get("turbidity")),
                 body.get("quality_score"),
                 quality_status,
+                ai_label if 'ai_label' in locals() else None,
             ),
         )
         row = cur.fetchone()
@@ -145,7 +174,7 @@ def get_device_current_readings(device_id):
         cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute("""
             SELECT temperature, ph, ec, nitrogen, phosphorus, turbidity,
-                   quality_status, quality_score, timestamp
+                   quality_status, quality_score, timestamp, ai_quality_label
             FROM sensor_readings
             WHERE device_id = %s
             ORDER BY timestamp DESC
@@ -167,6 +196,7 @@ def get_device_current_readings(device_id):
             'phosphorus': float(row['phosphorus']) if row['phosphorus'] is not None else None,
             'turbidity': bool(row['turbidity']) if row['turbidity'] is not None else None,
             'status': row['quality_status'],
+            'ai_label': row.get('ai_quality_label'),
             'score': row['quality_score'],
             'timestamp': row['timestamp'].isoformat() if row['timestamp'] else None
         }), 200

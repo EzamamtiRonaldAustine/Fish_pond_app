@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS sensor_readings (
     phosphorus      DECIMAL(8, 2),
     turbidity       BOOLEAN,
     quality_status  VARCHAR(20) CHECK (quality_status IN ('GOOD', 'WARNING', 'CRITICAL')),
+    ai_quality_label VARCHAR(20),
     quality_score   INTEGER CHECK (quality_score >= 0 AND quality_score <= 100),
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -135,6 +136,7 @@ COMMENT ON TABLE pond_config IS 'System configuration parameters';
 COMMENT ON TABLE pump_log IS 'Log of pump activation events';
 
 COMMENT ON COLUMN sensor_readings.quality_status IS 'Overall water quality status: GOOD, WARNING, or CRITICAL';
+COMMENT ON COLUMN sensor_readings.ai_quality_label IS 'Water quality AI-assessed label based on core metrics';
 COMMENT ON COLUMN sensor_readings.quality_score IS 'Water quality score from 0-100 (lower is better)';
 COMMENT ON COLUMN users.role IS 'User role: farmer (default), admin, or viewer';
 
