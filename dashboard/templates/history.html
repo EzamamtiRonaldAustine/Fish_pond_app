@@ -380,14 +380,13 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
 <script>
     let historyChart = null;
     let selectedDeviceId = null;
     let currentData = {};
     let selectedParameters = ['temperature', 'ph'];
     let chartMode = 'dual';
+    let sortedTimestamps = [];
 
     const PARAMETER_CONFIG = {
         temperature: {
@@ -427,13 +426,13 @@
         },
         quality_status: {
             label: 'Rule Status',
-            color: '#636e72',
+            color: '#64748b',
             unit: '',
             isString: true
         },
         ai_quality_label: {
             label: 'AI Label',
-            color: '#0984e3',
+            color: '#0d6efd',
             unit: '',
             isString: true
         }
@@ -457,7 +456,7 @@
                 document.getElementById('history-content').style.display = 'block';
 
                 select.innerHTML = '<option value="">Select a device</option>' +
-                    devices.map(d => '<option value="' + d.id + '">' + d.name + ' (' + d.device_id + ')</option>').join('');
+                    devices.map(d => `<option value="${d.id}">${d.name} (${d.device_id})</option>`).join('');
 
                 if (devices.length > 0) {
                     select.value = devices[0].id;
@@ -488,7 +487,6 @@
     }
 
     function clearSelection() {
-        if (selectedParameters.length === 0) return;
         selectedParameters = ['temperature'];
         Object.keys(PARAMETER_CONFIG).forEach(param => {
             document.getElementById('param-' + param).checked = (param === 'temperature');
@@ -507,12 +505,12 @@
         document.getElementById('overlay-mode-btn').classList.toggle('active', mode === 'overlay');
         document.getElementById('dual-axis-mode-btn').classList.toggle('active', mode === 'dual');
 
-        if (Object.keys(currentData).length > 0) {
+        if (sortedTimestamps.length > 0) {
             renderChart();
         }
     }
 
-    document.getElementById('device-selector').addEventListener('change', function (e) {
+    document.getElementById('device-selector').addEventListener('change', (e) => {
         selectedDeviceId = e.target.value;
     });
 
@@ -539,18 +537,22 @@
         currentData = {};
 
         try {
-            const promises = selectedParameters.map(function (param, index) {
-                updateLoadingProgress('Loading ' + PARAMETER_CONFIG[param].label + '... (' + (index + 1) + '/' + selectedParameters.length + ')');
-                return fetch('/api-proxy/devices/' + selectedDeviceId + '/historical/' + param + '?period=' + period + '&limit=' + limit)
-                    .then(r => r.json())
-                    .then(data => {
-                        if (data.error) throw new Error(data.error);
-                        currentData[param] = data;
-                        return data;
-                    });
+            const promises = selectedParameters.map(async (param, index) => {
+                updateLoadingProgress(`Loading ${PARAMETER_CONFIG[param].label}... (${index + 1}/${selectedParameters.length})`);
+                const r = await fetch(`/api-proxy/devices/${selectedDeviceId}/historical/${param}?period=${period}&limit=${limit}`);
+                const data = await r.json();
+                if (data.error) throw new Error(data.error);
+                currentData[param] = data;
+                return data;
             });
 
             await Promise.all(promises);
+
+            const allTimestamps = new Set();
+            Object.values(currentData).forEach(paramData => {
+                paramData.data.forEach(point => allTimestamps.add(point.timestamp));
+            });
+            sortedTimestamps = Array.from(allTimestamps).sort();
 
             document.getElementById('chart-mode-toggle').style.display = 'inline-flex';
 
@@ -570,66 +572,53 @@
         const ctx = document.getElementById('historyChart').getContext('2d');
         if (historyChart) historyChart.destroy();
 
-        const allTimestamps = new Set();
-        Object.values(currentData).forEach(function (paramData) {
-            paramData.data.forEach(function (point) {
-                allTimestamps.add(point.timestamp);
-            });
-        });
-
-        const sortedTimestamps = Array.from(allTimestamps).sort();
-        const labels = sortedTimestamps.map(function (ts) {
+        const labels = sortedTimestamps.map(ts => {
             const date = new Date(ts);
-            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            return (document.getElementById('period').value === '24h') ? timeStr : `${date.toLocaleDateString()} ${timeStr}`;
         });
 
         const datasets = selectedParameters
             .filter(param => !PARAMETER_CONFIG[param].isString)
-            .map(function (param) {
+            .map(param => {
                 const config = PARAMETER_CONFIG[param];
                 const paramData = currentData[param];
 
-                const dataPoints = sortedTimestamps.map(function (ts) {
-                    const point = paramData.data.find(function (p) {
-                        return p.timestamp === ts;
-                    });
+                const dataPoints = sortedTimestamps.map(ts => {
+                    const point = paramData.data.find(p => p.timestamp === ts);
                     return point ? parseFloat(point.value) : null;
                 });
 
+                const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+                gradient.addColorStop(0, config.color + '40');
+                gradient.addColorStop(1, config.color + '00');
+
                 return {
-                    label: config.label + (config.unit ? ' (' + config.unit + ')' : ''),
+                    label: config.label + (config.unit ? ` (${config.unit})` : ''),
                     data: dataPoints,
                     borderColor: config.color,
-                    backgroundColor: config.color + '15',
+                    backgroundColor: gradient,
                     tension: 0.4,
                     fill: true,
                     spanGaps: true,
-                    pointRadius: 4,
-                    pointHoverRadius: 7,
-                    pointBackgroundColor: config.color,
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 6,
                     pointHoverBackgroundColor: config.color,
                     pointHoverBorderColor: '#fff',
+                    pointHoverBorderWidth: 2,
                     borderWidth: config.lineWidth,
-                    yAxisID: chartMode === 'dual' ? config.yAxisID : 'y',
-                    cubicInterpolationMode: 'monotone'
+                    yAxisID: chartMode === 'dual' ? config.yAxisID : 'y'
                 };
             });
 
         const scales = {
             x: {
-                display: true,
-                grid: {
-                    display: true,
-                    color: 'rgba(0, 0, 0, 0.05)',
-                    drawBorder: false
-                },
+                grid: { display: false },
                 ticks: {
-                    maxRotation: 45,
-                    minRotation: 45,
-                    font: { size: 10 },
-                    color: '#666'
+                    autoSkip: true,
+                    maxTicksLimit: 12,
+                    font: { size: 10, family: "'Segoe UI', sans-serif" },
+                    color: '#94a3b8'
                 }
             }
         };
@@ -637,172 +626,98 @@
         if (chartMode === 'overlay') {
             scales.y = {
                 display: true,
-                position: 'left',
-                grid: {
-                    display: true,
-                    color: 'rgba(0, 0, 0, 0.05)',
-                    drawBorder: false
-                },
-                ticks: {
-                    font: { size: 11 },
-                    color: '#666',
-                    padding: 8
-                }
+                grid: { color: 'rgba(0, 0, 0, 0.05)', drawBorder: false },
+                ticks: { font: { size: 11 }, color: '#64748b' }
             };
-        } else if (chartMode === 'dual') {
-            const hasTemp = selectedParameters.includes('temperature');
-            const hasPh = selectedParameters.includes('ph');
-            const hasEC = selectedParameters.includes('ec');
-            const hasNutrients = selectedParameters.includes('nitrogen') || selectedParameters.includes('phosphorus');
+        } else {
+            const axes = [
+                { id: 'y-temp', label: 'Temp (°C)', color: '#2E86DE', pos: 'left' },
+                { id: 'y-ph', label: 'pH Level', color: '#10AC84', pos: 'right' },
+                { id: 'y-ec', label: 'EC', color: '#EE5A6F', pos: 'right' },
+                { id: 'y-nutrients', label: 'Nutrients', color: '#F79F1F', pos: 'right' }
+            ];
 
-            let rightAxisCount = 0;
-
-            if (hasTemp || hasNutrients) {
-                scales['y-temp'] = {
-                    type: 'linear',
-                    display: hasTemp,
-                    position: 'left',
-                    grid: {
+            axes.forEach(axis => {
+                const isUsed = selectedParameters.some(p => PARAMETER_CONFIG[p].yAxisID === axis.id);
+                if (isUsed) {
+                    scales[axis.id] = {
+                        type: 'linear',
                         display: true,
-                        color: 'rgba(0, 0, 0, 0.05)',
-                        drawBorder: false
-                    },
-                    ticks: {
-                        font: { size: 11 },
-                        color: '#2E86DE',
-                        padding: 8
-                    },
-                    title: {
-                        display: hasTemp,
-                        text: 'Temperature (°C)',
-                        color: '#2E86DE',
-                        font: { size: 12, weight: 'bold' }
-                    }
-                };
-
-                scales['y-nutrients'] = scales['y-temp'];
-            }
-
-            if (hasPh) {
-                scales['y-ph'] = {
-                    type: 'linear',
-                    display: true,
-                    position: 'right',
-                    grid: { display: false, drawBorder: false },
-                    ticks: {
-                        font: { size: 11 },
-                        color: '#10AC84',
-                        padding: 8
-                    },
-                    title: {
-                        display: true,
-                        text: 'pH Level',
-                        color: '#10AC84',
-                        font: { size: 12, weight: 'bold' }
-                    }
-                };
-                rightAxisCount++;
-            }
-
-            if (hasEC) {
-                scales['y-ec'] = {
-                    type: 'linear',
-                    display: true,
-                    position: 'right',
-                    grid: { display: false, drawBorder: false },
-                    ticks: {
-                        font: { size: 11 },
-                        color: '#EE5A6F',
-                        padding: 8
-                    },
-                    title: {
-                        display: true,
-                        text: 'EC (μS/cm)',
-                        color: '#EE5A6F',
-                        font: { size: 12, weight: 'bold' }
-                    }
-                };
-            }
+                        position: axis.pos,
+                        grid: { display: axis.pos === 'left', color: 'rgba(0, 0, 0, 0.05)', drawBorder: false },
+                        ticks: { font: { size: 11 }, color: axis.color },
+                        title: {
+                            display: true,
+                            text: axis.label,
+                            color: axis.color,
+                            font: { size: 12, weight: '600' }
+                        }
+                    };
+                }
+            });
         }
 
         historyChart = new Chart(ctx, {
             type: 'line',
-            data: {
-                labels: labels,
-                datasets: datasets
-            },
+            data: { labels, datasets },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                interaction: {
-                    mode: 'index',
-                    intersect: false
-                },
+                interaction: { mode: 'index', intersect: false },
                 plugins: {
-                    title: {
-                        display: true,
-                        text: 'Historical Data - ' + document.getElementById('period').options[document.getElementById('period').selectedIndex].text,
-                        font: { size: 16, weight: 'bold' },
-                        padding: { top: 10, bottom: 20 },
-                        color: '#333'
-                    },
                     legend: {
-                        display: true,
                         position: 'top',
-                        labels: {
-                            padding: 15,
-                            font: { size: 12 },
-                            usePointStyle: true,
-                            pointStyle: 'circle'
-                        }
+                        align: 'end',
+                        labels: { padding: 20, font: { size: 12, weight: '500' }, usePointStyle: true, pointStyle: 'circle' }
                     },
                     tooltip: {
-                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                        titleFont: { size: 13 },
-                        bodyFont: { size: 12 },
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        titleColor: '#1e293b',
+                        bodyColor: '#475569',
+                        borderColor: '#e2e8f0',
+                        borderWidth: 1,
                         padding: 12,
-                        displayColors: true,
+                        boxPadding: 6,
+                        usePointStyle: true,
+                        cornerRadius: 8,
+                        titleFont: { size: 13, weight: 'bold' },
+                        bodyFont: { size: 12 },
                         callbacks: {
-                            label: function (context) {
+                            label: (context) => {
                                 let label = context.dataset.label || '';
-                                if (context.parsed.y !== null) {
-                                    label += ': ' + context.parsed.y.toFixed(2);
-                                }
+                                if (context.parsed.y !== null) label += ': ' + context.parsed.y.toFixed(2);
                                 return label;
                             }
                         }
                     }
                 },
-                scales: scales
+                scales
             }
         });
-
-        document.getElementById('historyChart').style.height = '500px';
     }
 
     function updateStatistics() {
         const statsContainer = document.getElementById('stats-content');
         let html = '';
 
-        selectedParameters.forEach(function (param) {
+        selectedParameters.forEach(param => {
             const config = PARAMETER_CONFIG[param];
             if (config.isString) return;
 
-            const data = currentData[param].data.map(function (p) {
-                return parseFloat(p.value);
-            });
+            const data = currentData[param].data.map(p => parseFloat(p.value));
+            const min = Math.min(...data).toFixed(2);
+            const max = Math.max(...data).toFixed(2);
+            const avg = (data.reduce((a, b) => a + b, 0) / data.length).toFixed(2);
 
-            const min = Math.min.apply(Math, data).toFixed(2);
-            const max = Math.max.apply(Math, data).toFixed(2);
-            const avg = (data.reduce(function (a, b) { return a + b; }, 0) / data.length).toFixed(2);
-
-            html += '<div class="stats-card" style="border-left-color: ' + config.color + '">' +
-                '<h6 style="color: ' + config.color + '">' + config.label + '</h6>' +
-                '<div class="row text-center">' +
-                '<div class="col-4"><small class="text-muted">Min</small><div class="value">' + min + '</div></div>' +
-                '<div class="col-4"><small class="text-muted">Avg</small><div class="value">' + avg + '</div></div>' +
-                '<div class="col-4"><small class="text-muted">Max</small><div class="value">' + max + '</div></div>' +
-                '</div></div>';
+            html += `
+                <div class="stats-card" style="border-left-color: ${config.color}">
+                    <h6 style="color: ${config.color}">${config.label}</h6>
+                    <div class="row text-center">
+                        <div class="col-4"><small class="text-muted">Min</small><div class="value">${min}</div></div>
+                        <div class="col-4"><small class="text-muted">Avg</small><div class="value">${avg}</div></div>
+                        <div class="col-4"><small class="text-muted">Max</small><div class="value">${max}</div></div>
+                    </div>
+                </div>`;
         });
 
         statsContainer.innerHTML = html;
@@ -810,167 +725,171 @@
     }
 
     function updateDataTable() {
-        const allTimestamps = new Set();
-        Object.values(currentData).forEach(function (paramData) {
-            paramData.data.forEach(function (point) {
-                allTimestamps.add(point.timestamp);
-            });
-        });
-
-        const sortedTimestamps = Array.from(allTimestamps).sort().reverse();
-
         const header = document.getElementById('table-header');
         header.innerHTML = '<th>Timestamp</th>' +
-            selectedParameters.map(function (param) {
-                return '<th>' + PARAMETER_CONFIG[param].label + '</th>';
-            }).join('');
+            selectedParameters.map(param => `<th>${PARAMETER_CONFIG[param].label}</th>`).join('');
 
         const tbody = document.getElementById('table-body');
-        tbody.innerHTML = sortedTimestamps.map(function (ts) {
-            const values = selectedParameters.map(function (param) {
-                const point = currentData[param].data.find(function (p) {
-                    return p.timestamp === ts;
-                });
+        const reversedTimestamps = [...sortedTimestamps].reverse();
+        
+        tbody.innerHTML = reversedTimestamps.map(ts => {
+            const values = selectedParameters.map(param => {
+                const point = currentData[param].data.find(p => p.timestamp === ts);
                 if (!point) return '--';
-                if (PARAMETER_CONFIG[param].isString) return point.value;
-                return parseFloat(point.value).toFixed(2);
+                return PARAMETER_CONFIG[param].isString ? point.value : parseFloat(point.value).toFixed(2);
             });
 
-            return '<tr><td>' + new Date(ts).toLocaleString() + '</td>' +
-                values.map(function (v) { return '<td>' + v + '</td>'; }).join('') +
-                '</tr>';
+            return `<tr><td>${new Date(ts).toLocaleString()}</td>${values.map(v => `<td>${v}</td>`).join('')}</tr>`;
         }).join('');
     }
 
     function switchView(view) {
-        if (view === 'chart') {
-            document.getElementById('chart-view-container').style.display = 'block';
-            document.getElementById('data-table-container').style.display = 'none';
-            document.getElementById('chart-view-btn').classList.add('active');
-            document.getElementById('table-view-btn').classList.remove('active');
-            document.getElementById('chart-mode-toggle').style.display = 'inline-flex';
-        } else {
-            document.getElementById('chart-view-container').style.display = 'none';
-            document.getElementById('data-table-container').style.display = 'block';
-            document.getElementById('chart-view-btn').classList.remove('active');
-            document.getElementById('table-view-btn').classList.add('active');
-            document.getElementById('chart-mode-toggle').style.display = 'none';
-        }
+        document.getElementById('chart-view-container').style.display = view === 'chart' ? 'block' : 'none';
+        document.getElementById('data-table-container').style.display = view === 'table' ? 'block' : 'none';
+        document.getElementById('chart-view-btn').classList.toggle('active', view === 'chart');
+        document.getElementById('table-view-btn').classList.toggle('active', view === 'table');
+        document.getElementById('chart-mode-toggle').style.display = view === 'chart' ? 'inline-flex' : 'none';
     }
 
     function exportChart(format) {
-        if (!historyChart) {
-            alert('Please load data first');
-            return;
-        }
-
-        const canvas = document.getElementById('historyChart');
+        if (!historyChart) return alert('Please load data first');
         const link = document.createElement('a');
-        link.download = 'pond-history-' + new Date().toISOString().split('T')[0] + '.' + format;
-        link.href = canvas.toDataURL('image/' + format);
+        link.download = `AquaGuardian_Chart_${new Date().toISOString().split('T')[0]}.${format}`;
+        link.href = document.getElementById('historyChart').toDataURL(`image/${format}`, 1.0);
         link.click();
     }
 
     function exportData(format) {
-        if (Object.keys(currentData).length === 0) {
-            alert('Please load data first');
-            return;
-        }
-
-        if (format === 'csv') {
-            exportCSV();
-        } else if (format === 'pdf') {
-            exportPDF();
-        }
+        if (sortedTimestamps.length === 0) return alert('Please load data first');
+        if (format === 'csv') exportCSV();
+        else if (format === 'pdf') exportPDF();
+        else if (format === 'xlsx') exportXLSX();
     }
 
     function exportCSV() {
-        const allTimestamps = new Set();
-        Object.values(currentData).forEach(function (paramData) {
-            paramData.data.forEach(function (point) {
-                allTimestamps.add(point.timestamp);
+        const deviceName = document.getElementById('device-selector').options[document.getElementById('device-selector').selectedIndex].text;
+        const period = document.getElementById('period').options[document.getElementById('period').selectedIndex].text;
+        
+        let csv = `AquaGuardian Smart Fish Pond Report\n`;
+        csv += `Device: ${deviceName}\n`;
+        csv += `Period: ${period}\n`;
+        csv += `Generated: ${new Date().toLocaleString()}\n\n`;
+        
+        csv += 'Timestamp,' + selectedParameters.map(p => PARAMETER_CONFIG[p].label).join(',') + '\n';
+        sortedTimestamps.forEach(ts => {
+            const vals = selectedParameters.map(param => {
+                const p = currentData[param].data.find(d => d.timestamp === ts);
+                return p ? p.value : '';
             });
-        });
-
-        const sortedTimestamps = Array.from(allTimestamps).sort();
-
-        let csv = 'Timestamp,' + selectedParameters.map(function (p) {
-            return PARAMETER_CONFIG[p].label;
-        }).join(',') + '\\n';
-
-        sortedTimestamps.forEach(function (ts) {
-            const values = selectedParameters.map(function (param) {
-                const point = currentData[param].data.find(function (p) {
-                    return p.timestamp === ts;
-                });
-                return point ? point.value : '';
-            });
-
-            csv += new Date(ts).toISOString() + ',' + values.join(',') + '\\n';
+            csv += `"${new Date(ts).toISOString()}",${vals.join(',')}\n`;
         });
 
         const blob = new Blob([csv], { type: 'text/csv' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = 'pond-data-' + new Date().toISOString().split('T')[0] + '.csv';
+        link.download = `AquaGuardian_Data_${new Date().toISOString().split('T')[0]}.csv`;
         link.click();
     }
 
     async function exportPDF() {
-        const jsPDF = window.jspdf.jsPDF;
-        const pdf = new jsPDF('l', 'mm', 'a4');
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('l', 'mm', 'a4');
+        const deviceName = document.getElementById('device-selector').options[document.getElementById('device-selector').selectedIndex].text;
+        
+        doc.setFontSize(22);
+        doc.setTextColor(30, 60, 114);
+        doc.text('AquaGuardian: Water Quality Analytics Report', 14, 20);
+        
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
+        doc.text(`Device: ${deviceName}`, 14, 33);
+        doc.text(`Period: ${document.getElementById('period').options[document.getElementById('period').selectedIndex].text}`, 14, 38);
 
-        pdf.setFontSize(16);
-        pdf.text('Fish Pond Historical Data Report', 20, 20);
+        const imgData = document.getElementById('historyChart').toDataURL('image/png', 1.0);
+        doc.addImage(imgData, 'PNG', 14, 45, 269, 100);
 
-        pdf.setFontSize(10);
-        pdf.text('Generated: ' + new Date().toLocaleString(), 20, 28);
-        pdf.text('Period: ' + document.getElementById('period').options[document.getElementById('period').selectedIndex].text, 20, 34);
-
-        const canvas = document.getElementById('historyChart');
-        const imgData = canvas.toDataURL('image/png');
-        pdf.addImage(imgData, 'PNG', 20, 45, 250, 120);
-
-        let yPos = 175;
-        pdf.setFontSize(12);
-        pdf.text('Statistics Summary:', 20, yPos);
-        yPos += 8;
-
-        pdf.setFontSize(9);
-        selectedParameters.forEach(function (param) {
+        const statsData = selectedParameters.filter(p => !PARAMETER_CONFIG[p].isString).map(param => {
             const config = PARAMETER_CONFIG[param];
-            const data = currentData[param].data.map(function (p) {
-                return parseFloat(p.value);
-            });
-            const min = Math.min.apply(Math, data).toFixed(2);
-            const max = Math.max.apply(Math, data).toFixed(2);
-            const avg = (data.reduce(function (a, b) { return a + b; }, 0) / data.length).toFixed(2);
-
-            pdf.text(config.label + ': Min=' + min + ', Avg=' + avg + ', Max=' + max, 25, yPos);
-            yPos += 6;
+            const data = currentData[param].data.map(p => parseFloat(p.value));
+            return [config.label, Math.min(...data).toFixed(2), (data.reduce((a, b) => a + b, 0) / data.length).toFixed(2), Math.max(...data).toFixed(2), config.unit];
         });
 
-        pdf.save('pond-report-' + new Date().toISOString().split('T')[0] + '.pdf');
+        doc.autoTable({
+            startY: 155,
+            head: [['Parameter', 'Min', 'Avg', 'Max', 'Unit']],
+            body: statsData,
+            theme: 'striped',
+            headStyles: { fillColor: [46, 134, 222] }
+        });
+
+        doc.addPage();
+        doc.setFontSize(14);
+        doc.text('Detailed Sensor Readings Log', 14, 15);
+        
+        const tableHeader = ['Timestamp', ...selectedParameters.map(p => PARAMETER_CONFIG[p].label)];
+        const tableBody = sortedTimestamps.map(ts => [
+            new Date(ts).toLocaleString(),
+            ...selectedParameters.map(param => {
+                const p = currentData[param].data.find(d => d.timestamp === ts);
+                return p ? (PARAMETER_CONFIG[param].isString ? p.value : parseFloat(p.value).toFixed(2)) : '--';
+            })
+        ]);
+
+        doc.autoTable({
+            startY: 20,
+            head: [tableHeader],
+            body: tableBody,
+            theme: 'grid',
+            headStyles: { fillColor: [30, 60, 114] },
+            styles: { fontSize: 8 }
+        });
+
+        doc.save(`AquaGuardian_Report_${new Date().toISOString().split('T')[0]}.pdf`);
     }
 
-    function showLoading(show) {
-        document.getElementById('loading-overlay').style.display = show ? 'flex' : 'none';
+    function exportXLSX() {
+        const wb = XLSX.utils.book_new();
+        const deviceName = document.getElementById('device-selector').options[document.getElementById('device-selector').selectedIndex].text;
+        
+        const dataRows = sortedTimestamps.map(ts => {
+            const row = { 'Timestamp': new Date(ts).toLocaleString() };
+            selectedParameters.forEach(param => {
+                const p = currentData[param].data.find(d => d.timestamp === ts);
+                row[PARAMETER_CONFIG[param].label] = p ? (PARAMETER_CONFIG[param].isString ? p.value : parseFloat(p.value)) : null;
+            });
+            return row;
+        });
+        const wsData = XLSX.utils.json_to_sheet(dataRows);
+        XLSX.utils.book_append_sheet(wb, wsData, "Sensor Data");
+        
+        const summaryRows = selectedParameters.filter(p => !PARAMETER_CONFIG[p].isString).map(param => {
+            const data = currentData[param].data.map(p => parseFloat(p.value));
+            return {
+                'Parameter': PARAMETER_CONFIG[param].label,
+                'Unit': PARAMETER_CONFIG[param].unit,
+                'Min': Math.min(...data),
+                'Max': Math.max(...data),
+                'Average': (data.reduce((a, b) => a + b, 0) / data.length).toFixed(2),
+                'Samples': data.length
+            };
+        });
+        const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
+        XLSX.utils.book_append_sheet(wb, wsSummary, "Analytics Summary");
+        
+        XLSX.writeFile(wb, `AquaGuardian_Data_${new Date().toISOString().split('T')[0]}.xlsx`);
     }
 
-    function updateLoadingProgress(message) {
-        document.getElementById('loading-progress').textContent = message;
+    function showLoading(show) { document.getElementById('loading-overlay').style.display = show ? 'flex' : 'none'; }
+    function updateLoadingProgress(msg) { document.getElementById('loading-progress').textContent = msg; }
+    function showNoDataMessage(msg) {
+        const c = document.getElementById('no-data-message');
+        c.innerHTML = `<div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> ${msg}</div>`;
+        c.style.display = 'block';
     }
-
-    function showNoDataMessage(message) {
-        const container = document.getElementById('no-data-message');
-        container.innerHTML = '<div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> ' + message + '</div>';
-        container.style.display = 'block';
-    }
-
-    function hideNoDataMessage() {
-        document.getElementById('no-data-message').style.display = 'none';
-    }
+    function hideNoDataMessage() { document.getElementById('no-data-message').style.display = 'none'; }
 
     loadDevices();
+</script>
 </script>
 {% endblock %}

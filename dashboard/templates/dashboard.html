@@ -431,54 +431,64 @@
             const ctx = document.getElementById('trendsChart').getContext('2d');
             if (trendsChart) trendsChart.destroy();
 
+            // Premium Gradients
+            const tempGradient = ctx.createLinearGradient(0, 0, 0, 400);
+            tempGradient.addColorStop(0, 'rgba(46, 134, 222, 0.3)');
+            tempGradient.addColorStop(1, 'rgba(46, 134, 222, 0)');
+
+            const phGradient = ctx.createLinearGradient(0, 0, 0, 400);
+            phGradient.addColorStop(0, 'rgba(16, 172, 132, 0.3)');
+            phGradient.addColorStop(1, 'rgba(16, 172, 132, 0)');
+
+            const ecGradient = ctx.createLinearGradient(0, 0, 0, 400);
+            ecGradient.addColorStop(0, 'rgba(238, 90, 111, 0.3)');
+            ecGradient.addColorStop(1, 'rgba(238, 90, 111, 0)');
+
             const datasets = [
                 {
                     label: 'Temperature (C)',
                     data: temps,
                     borderColor: '#2E86DE',
-                    backgroundColor: '#2E86DE15',
+                    backgroundColor: tempGradient,
                     tension: 0.4,
                     fill: true,
-                    pointRadius: 3,
+                    pointRadius: 0,
                     pointHoverRadius: 6,
-                    pointBackgroundColor: '#2E86DE',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2,
+                    pointHoverBackgroundColor: '#2E86DE',
+                    pointHoverBorderColor: '#fff',
+                    pointHoverBorderWidth: 2,
                     borderWidth: 3,
                     yAxisID: chartMode === 'dual' ? 'y-temp' : 'y',
-                    cubicInterpolationMode: 'monotone'
                 },
                 {
                     label: 'pH Level',
                     data: phs,
                     borderColor: '#10AC84',
-                    backgroundColor: '#10AC8415',
+                    backgroundColor: phGradient,
                     tension: 0.4,
                     fill: true,
-                    pointRadius: 3,
+                    pointRadius: 0,
                     pointHoverRadius: 6,
-                    pointBackgroundColor: '#10AC84',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2,
+                    pointHoverBackgroundColor: '#10AC84',
+                    pointHoverBorderColor: '#fff',
+                    pointHoverBorderWidth: 2,
                     borderWidth: 3,
                     yAxisID: chartMode === 'dual' ? 'y-ph' : 'y',
-                    cubicInterpolationMode: 'monotone'
                 },
                 {
                     label: 'EC (uS/cm)',
                     data: ecs,
                     borderColor: '#EE5A6F',
-                    backgroundColor: '#EE5A6F15',
+                    backgroundColor: ecGradient,
                     tension: 0.4,
                     fill: true,
-                    pointRadius: 3,
+                    pointRadius: 0,
                     pointHoverRadius: 6,
-                    pointBackgroundColor: '#EE5A6F',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2,
+                    pointHoverBackgroundColor: '#EE5A6F',
+                    pointHoverBorderColor: '#fff',
+                    pointHoverBorderWidth: 2,
                     borderWidth: 3,
                     yAxisID: chartMode === 'dual' ? 'y-ec' : 'y',
-                    cubicInterpolationMode: 'monotone'
                 }
             ];
 
@@ -486,15 +496,14 @@
                 x: {
                     display: true,
                     grid: {
-                        display: true,
-                        color: 'rgba(0, 0, 0, 0.05)',
-                        drawBorder: false
+                        display: false
                     },
                     ticks: {
-                        maxRotation: 45,
-                        minRotation: 45,
-                        font: { size: 10 },
-                        color: '#666'
+                        maxRotation: 0,
+                        autoSkip: true,
+                        maxTicksLimit: 8,
+                        font: { size: 11, family: "'Segoe UI', sans-serif" },
+                        color: '#94a3b8'
                     }
                 }
             };
@@ -504,13 +513,12 @@
                     display: true,
                     position: 'left',
                     grid: {
-                        display: true,
                         color: 'rgba(0, 0, 0, 0.05)',
                         drawBorder: false
                     },
                     ticks: {
                         font: { size: 11 },
-                        color: '#666'
+                        color: '#64748b'
                     }
                 };
             } else {
@@ -519,7 +527,6 @@
                     display: true,
                     position: 'left',
                     grid: {
-                        display: true,
                         color: 'rgba(0, 0, 0, 0.05)',
                         drawBorder: false
                     },
@@ -529,9 +536,9 @@
                     },
                     title: {
                         display: true,
-                        text: 'Temperature (C)',
+                        text: 'Temp (°C)',
                         color: '#2E86DE',
-                        font: { size: 12, weight: 'bold' }
+                        font: { size: 12, weight: '600' }
                     }
                 };
 
@@ -548,7 +555,7 @@
                         display: true,
                         text: 'pH',
                         color: '#10AC84',
-                        font: { size: 12, weight: 'bold' }
+                        font: { size: 12, weight: '600' }
                     }
                 };
 
@@ -563,9 +570,9 @@
                     },
                     title: {
                         display: true,
-                        text: 'EC (uS/cm)',
+                        text: 'EC',
                         color: '#EE5A6F',
-                        font: { size: 12, weight: 'bold' }
+                        font: { size: 12, weight: '600' }
                     }
                 };
             }
@@ -584,25 +591,29 @@
                         intersect: false
                     },
                     plugins: {
-                        title: {
-                            display: false
-                        },
                         legend: {
                             display: true,
                             position: 'top',
+                            align: 'end',
                             labels: {
-                                padding: 15,
-                                font: { size: 11 },
+                                padding: 20,
+                                font: { size: 12, weight: '500' },
                                 usePointStyle: true,
                                 pointStyle: 'circle'
                             }
                         },
                         tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            titleFont: { size: 12 },
-                            bodyFont: { size: 11 },
-                            padding: 10,
-                            displayColors: true,
+                            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                            titleColor: '#1e293b',
+                            bodyColor: '#475569',
+                            borderColor: '#e2e8f0',
+                            borderWidth: 1,
+                            padding: 12,
+                            boxPadding: 6,
+                            usePointStyle: true,
+                            titleFont: { size: 13, weight: 'bold' },
+                            bodyFont: { size: 12 },
+                            cornerRadius: 8,
                             callbacks: {
                                 label: function (context) {
                                     let label = context.dataset.label || '';
