@@ -72,3 +72,6 @@ railway-temp/
 # Backup files
 *.bak
 *.backup
+
+# Unused templates
+dashboard/templates/ml_analysis.html
