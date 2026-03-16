@@ -267,7 +267,7 @@ def get_device_historical(device_id, parameter):
         hours = {'24h': 24, '7d': 168, '30d': 720}.get(period, 24)
         start_time = datetime.now() - timedelta(hours=hours)
         
-        valid_params = ['temperature', 'ph', 'ec', 'nitrogen', 'phosphorus', 'turbidity']
+        valid_params = ['temperature', 'ph', 'ec', 'nitrogen', 'phosphorus', 'turbidity', 'ai_quality_label', 'quality_status']
         if parameter not in valid_params:
             return jsonify({'error': f'Invalid parameter'}), 400
         
@@ -290,9 +290,11 @@ def get_device_historical(device_id, parameter):
         cur.close()
         conn.close()
         
+        is_string_param = parameter in ['ai_quality_label', 'quality_status']
+        
         data = [{
             'timestamp': row['timestamp'].isoformat(),
-            'value': float(row[parameter]) if row[parameter] is not None else None
+            'value': row[parameter] if is_string_param else (float(row[parameter]) if row[parameter] is not None else None)
         } for row in rows]
         
         return jsonify({

@@ -115,6 +115,14 @@
         opacity: .8;
     }
 
+    .status-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        width: 100%;
+        margin-bottom: 26px;
+    }
+
     .quality-score-pill {
         font-size: 1.8rem;
         font-weight: 900;
@@ -492,15 +500,29 @@
 </div>
 
 <!-- ══════════════════════════════════════════════════════════
-     STATUS BANNER
+     STATUS BANNERS (Hardware vs AI)
 ══════════════════════════════════════════════════════════ -->
-<div id="status-banner" class="status-banner GOOD">
-    <span class="status-banner-icon" id="banner-icon">🟢</span>
-    <div class="status-banner-text">
-        <h3 id="banner-status">Loading…</h3>
-        <p id="banner-subtitle">Waiting for first data point from device</p>
+<div class="status-grid">
+    <!-- Hardware Status -->
+    <div id="status-banner-hw" class="status-banner GOOD mb-0">
+        <span class="status-banner-icon" id="banner-icon-hw">🟢</span>
+        <div class="status-banner-text">
+            <div style="font-size:0.75rem; text-transform:uppercase; font-weight:700; opacity:0.7; margin-bottom:2px;">Hardware Rule Status</div>
+            <h3 id="banner-status-hw">Loading…</h3>
+            <p id="banner-subtitle-hw">Waiting for sensor node...</p>
+        </div>
+        <span class="quality-score-pill" id="banner-score" style="display:none;">—</span>
     </div>
-    <span class="quality-score-pill" id="banner-score">—</span>
+
+    <!-- AI Model Status -->
+    <div id="status-banner-ai" class="status-banner GOOD mb-0" style="background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border-color: #7dd3fc;">
+        <span class="status-banner-icon" id="banner-icon-ai">🧠</span>
+        <div class="status-banner-text">
+            <div style="font-size:0.75rem; text-transform:uppercase; font-weight:700; opacity:0.7; margin-bottom:2px; color:#0369a1;">AI Model Assessment</div>
+            <h3 id="banner-status-ai" style="color:#0c4a6e;">Loading…</h3>
+            <p id="banner-subtitle-ai" style="color:#0c4a6e;">Waiting for ML inference...</p>
+        </div>
+    </div>
 </div>
 
 <!-- ══════════════════════════════════════════════════════════
@@ -816,8 +838,8 @@
 
             GAUGE_DEFS.forEach(g => updateGauge(g.key, d[g.key]));
 
-            // Status banner
-            updateBanner(d.status, d.score);
+            // Status banners
+            updateBanner(d.status, d.ai_label, d.score);
 
         } catch (e) { console.error('Readings fetch failed', e); }
     }
@@ -869,25 +891,66 @@
     }
 
     /* ─── BANNER ──────────────────────────────────────── */
-    function updateBanner(status, score) {
-        const banner = document.getElementById('status-banner');
-        const icon = document.getElementById('banner-icon');
-        const statEl = document.getElementById('banner-status');
-        const subEl = document.getElementById('banner-subtitle');
+    function updateBanner(status, ai_label, score) {
+        // Hardware Banner
+        const hwBanner = document.getElementById('status-banner-hw');
+        const hwIcon = document.getElementById('banner-icon-hw');
+        const hwStatEl = document.getElementById('banner-status-hw');
+        const hwSubEl = document.getElementById('banner-subtitle-hw');
         const scoreEl = document.getElementById('banner-score');
 
-        banner.className = 'status-banner ' + (status || 'GOOD');
+        hwBanner.className = 'status-banner mb-0 ' + (status || 'GOOD');
         scoreEl.textContent = score != null ? score + ' / 100' : '—';
 
         const info = {
-            GOOD: { icon: '🟢', text: 'All Good', sub: 'Water quality is within safe parameters.' },
-            WARNING: { icon: '🟡', text: 'Warning', sub: 'Some parameters need attention. Monitor closely.' },
-            CRITICAL: { icon: '🔴', text: 'Critical', sub: 'Immediate action required! Check the alerts below.' },
+            GOOD: { icon: '🟢', text: 'Good', sub: 'Calculated by Pi rules' },
+            WARNING: { icon: '🟡', text: 'Warning', sub: 'Calculated by Pi rules' },
+            CRITICAL: { icon: '🔴', text: 'Critical', sub: 'Calculated by Pi rules' },
         };
         const s = info[status] || info.GOOD;
-        icon.textContent = s.icon;
-        statEl.textContent = s.text;
-        subEl.textContent = s.sub;
+        hwIcon.textContent = s.icon;
+        hwStatEl.textContent = s.text;
+        hwSubEl.textContent = s.sub;
+
+        // AI Banner
+        const aiBanner = document.getElementById('status-banner-ai');
+        const aiIcon = document.getElementById('banner-icon-ai');
+        const aiStatEl = document.getElementById('banner-status-ai');
+        const aiSubEl = document.getElementById('banner-subtitle-ai');
+
+        if (!ai_label) {
+            aiIcon.textContent = '💤';
+            aiStatEl.textContent = 'Standby';
+            aiSubEl.textContent = 'ML assessment unavailable';
+            aiBanner.style.background = 'linear-gradient(135deg, #f1f5f9, #e2e8f0)';
+            aiBanner.style.borderColor = '#cbd5e1';
+            aiStatEl.style.color = '#475569';
+            aiSubEl.style.color = '#475569';
+        } else {
+            const aiUpper = ai_label.toUpperCase();
+            aiIcon.textContent = '🧠';
+            aiStatEl.textContent = ai_label;
+            aiSubEl.textContent = 'AquaSentinel ML 2';
+            
+            if (aiUpper === 'EXCELLENT' || aiUpper === 'GOOD') {
+                aiBanner.style.background = 'linear-gradient(135deg, #d1fae5, #a7f3d0)';
+                aiBanner.style.borderColor = '#34d399';
+                aiStatEl.style.color = '#065f46';
+                aiSubEl.style.color = '#065f46';
+            } else if (aiUpper === 'POOR' || aiUpper === 'CRITICAL') {
+                aiBanner.style.background = 'linear-gradient(135deg, #fee2e2, #fecaca)';
+                aiBanner.style.borderColor = '#f87171';
+                aiStatEl.style.color = '#991b1b';
+                aiSubEl.style.color = '#991b1b';
+                // Add pulse
+                aiBanner.style.animation = 'pulse-border 2s infinite';
+            } else {
+                aiBanner.style.background = 'linear-gradient(135deg, #f0f9ff, #e0f2fe)';
+                aiBanner.style.borderColor = '#7dd3fc';
+                aiStatEl.style.color = '#0c4a6e';
+                aiSubEl.style.color = '#0c4a6e';
+            }
+        }
     }
 
     /* ─── LED HELPER ──────────────────────────────────── */

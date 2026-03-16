@@ -10,13 +10,17 @@ def get_db_connection():
     """Create and return a database connection."""
     try:
         config = current_app.config
-        conn = psycopg2.connect(
-            dbname=config['DB_NAME'],
-            user=config['DB_USER'],
-            password=config['DB_PASSWORD'],
-            host=config['DB_HOST'],
-            port=config['DB_PORT'],
-        )
+        
+        if config.get('DATABASE_URL'):
+            conn = psycopg2.connect(config['DATABASE_URL'])
+        else:
+            conn = psycopg2.connect(
+                dbname=config.get('DB_NAME'),
+                user=config.get('DB_USER'),
+                password=config.get('DB_PASSWORD'),
+                host=config.get('DB_HOST'),
+                port=config.get('DB_PORT'),
+            )
         return conn
     except psycopg2.Error as e:
         logger.error(f"Database connection error: {e}")

@@ -269,6 +269,22 @@
                             <span class="parameter-unit">(mg/kg)</span>
                         </div>
                     </div>
+
+                    <div class="parameter-checkbox" onclick="toggleParameter('quality_status', event)">
+                        <input type="checkbox" id="param-quality_status" onclick="event.stopPropagation();">
+                        <div class="color-indicator" style="background: #636e72;"></div>
+                        <div class="parameter-label">
+                            Rule Status
+                        </div>
+                    </div>
+
+                    <div class="parameter-checkbox" onclick="toggleParameter('ai_quality_label', event)">
+                        <input type="checkbox" id="param-ai_quality_label" onclick="event.stopPropagation();">
+                        <div class="color-indicator" style="background: #0984e3;"></div>
+                        <div class="parameter-label">
+                            AI Label
+                        </div>
+                    </div>
                 </div>
 
                 <button id="load-history" class="btn btn-primary w-100 mt-3">
@@ -408,6 +424,18 @@
             unit: 'mg/kg',
             yAxisID: 'y-nutrients',
             lineWidth: 3
+        },
+        quality_status: {
+            label: 'Rule Status',
+            color: '#636e72',
+            unit: '',
+            isString: true
+        },
+        ai_quality_label: {
+            label: 'AI Label',
+            color: '#0984e3',
+            unit: '',
+            isString: true
         }
     };
 
@@ -555,37 +583,39 @@
             return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         });
 
-        const datasets = selectedParameters.map(function (param) {
-            const config = PARAMETER_CONFIG[param];
-            const paramData = currentData[param];
+        const datasets = selectedParameters
+            .filter(param => !PARAMETER_CONFIG[param].isString)
+            .map(function (param) {
+                const config = PARAMETER_CONFIG[param];
+                const paramData = currentData[param];
 
-            const dataPoints = sortedTimestamps.map(function (ts) {
-                const point = paramData.data.find(function (p) {
-                    return p.timestamp === ts;
+                const dataPoints = sortedTimestamps.map(function (ts) {
+                    const point = paramData.data.find(function (p) {
+                        return p.timestamp === ts;
+                    });
+                    return point ? parseFloat(point.value) : null;
                 });
-                return point ? parseFloat(point.value) : null;
-            });
 
-            return {
-                label: config.label + (config.unit ? ' (' + config.unit + ')' : ''),
-                data: dataPoints,
-                borderColor: config.color,
-                backgroundColor: config.color + '15',
-                tension: 0.4,
-                fill: true,
-                spanGaps: true,
-                pointRadius: 4,
-                pointHoverRadius: 7,
-                pointBackgroundColor: config.color,
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-                pointHoverBackgroundColor: config.color,
-                pointHoverBorderColor: '#fff',
-                borderWidth: config.lineWidth,
-                yAxisID: chartMode === 'dual' ? config.yAxisID : 'y',
-                cubicInterpolationMode: 'monotone'
-            };
-        });
+                return {
+                    label: config.label + (config.unit ? ' (' + config.unit + ')' : ''),
+                    data: dataPoints,
+                    borderColor: config.color,
+                    backgroundColor: config.color + '15',
+                    tension: 0.4,
+                    fill: true,
+                    spanGaps: true,
+                    pointRadius: 4,
+                    pointHoverRadius: 7,
+                    pointBackgroundColor: config.color,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointHoverBackgroundColor: config.color,
+                    pointHoverBorderColor: '#fff',
+                    borderWidth: config.lineWidth,
+                    yAxisID: chartMode === 'dual' ? config.yAxisID : 'y',
+                    cubicInterpolationMode: 'monotone'
+                };
+            });
 
         const scales = {
             x: {
@@ -756,6 +786,8 @@
 
         selectedParameters.forEach(function (param) {
             const config = PARAMETER_CONFIG[param];
+            if (config.isString) return;
+
             const data = currentData[param].data.map(function (p) {
                 return parseFloat(p.value);
             });
@@ -799,7 +831,9 @@
                 const point = currentData[param].data.find(function (p) {
                     return p.timestamp === ts;
                 });
-                return point ? parseFloat(point.value).toFixed(2) : '--';
+                if (!point) return '--';
+                if (PARAMETER_CONFIG[param].isString) return point.value;
+                return parseFloat(point.value).toFixed(2);
             });
 
             return '<tr><td>' + new Date(ts).toLocaleString() + '</td>' +

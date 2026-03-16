@@ -38,7 +38,7 @@ def get_devices():
                 LEFT JOIN organizations o ON d.organization_id = o.id
                 LEFT JOIN users u ON d.created_by = u.id
                 LEFT JOIN LATERAL (
-                    SELECT temperature, ph, quality_status
+                    SELECT temperature, ph, quality_status, ai_quality_label
                     FROM sensor_readings
                     WHERE device_id = d.id
                     ORDER BY timestamp DESC
@@ -59,7 +59,7 @@ def get_devices():
                 LEFT JOIN organizations o ON d.organization_id = o.id
                 LEFT JOIN users u ON d.created_by = u.id
                 LEFT JOIN LATERAL (
-                    SELECT temperature, ph, quality_status
+                    SELECT temperature, ph, quality_status, ai_quality_label
                     FROM sensor_readings
                     WHERE device_id = d.id
                     ORDER BY timestamp DESC

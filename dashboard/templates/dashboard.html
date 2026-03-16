@@ -109,15 +109,19 @@
 
     <div class="sensor-card">
         <div class="row text-center">
-            <div class="col-md-4">
-                <h5>Overall Status</h5>
+            <div class="col-md-3">
+                <h5>Rule Status</h5>
                 <h2 id="overall-status">Loading...</h2>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
+                <h5>AI Assessment</h5>
+                <h2 id="ai-status">--</h2>
+            </div>
+            <div class="col-md-3">
                 <h5>Quality Score</h5>
                 <h2 id="quality-score">--</h2>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <h5>Data Points (24h)</h5>
                 <h2 id="data-count">--</h2>
             </div>
@@ -326,6 +330,21 @@
                 const status = data.status || 'UNKNOWN';
                 const statusEl = document.getElementById('overall-status');
                 statusEl.innerHTML = '<span class="status-badge status-' + status + '">' + status + '</span>';
+
+                const aiLabel = data.ai_label;
+                const aiStatusEl = document.getElementById('ai-status');
+
+                if (!aiLabel) {
+                    aiStatusEl.innerHTML = '<span class="status-badge" style="background:#64748b; color:white;">Standby</span>';
+                } else {
+                    const aiUpper = aiLabel.toUpperCase();
+                    let badgeClass = 'status-badge ';
+                    if (aiUpper === 'EXCELLENT' || aiUpper === 'GOOD') badgeClass += 'status-GOOD';
+                    else if (aiUpper === 'POOR' || aiUpper === 'CRITICAL') badgeClass += 'status-CRITICAL';
+                    else badgeClass += 'status-WARNING';
+                    
+                    aiStatusEl.innerHTML = '<span class="' + badgeClass + '">' + aiLabel + '</span>';
+                }
 
                 document.getElementById('quality-score').textContent = data.score || '--';
 
