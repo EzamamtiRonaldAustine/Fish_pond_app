@@ -662,10 +662,20 @@
                 <i class="bi bi-stop-circle-fill"></i> Stop Pump
             </button>
 
-            <button class="ctrl-btn ctrl-btn-stop mt-2" id="btn-stop"
-                onclick="confirmCommand('SYSTEM_SHUTDOWN', '⚠️ Shutdown System?', 'This will stop the hardware agent on the Pi. You will need physical access to restart it.')">
-                <i class="bi bi-power"></i> Emergency Shutdown
-            </button>
+            <div class="row g-2 mt-2">
+                <div class="col-6">
+                    <button class="ctrl-btn" style="background: linear-gradient(135deg, #fbbf24, #d97706); color: #fff; box-shadow: 0 4px 15px rgba(251, 191, 36, .35);"
+                        onclick="confirmCommand('SYSTEM_RESTART', '♻️ Restart System?', 'This will reboot the hardware agent script on the Pi.')">
+                        <i class="bi bi-arrow-clockwise"></i> Restart
+                    </button>
+                </div>
+                <div class="col-6">
+                    <button class="ctrl-btn ctrl-btn-stop" id="btn-stop"
+                        onclick="confirmCommand('SYSTEM_SHUTDOWN', '⚠️ Shutdown System?', 'This will stop the hardware agent on the Pi. Requires physical access to restart.')">
+                        <i class="bi bi-power"></i> Shutdown
+                    </button>
+                </div>
+            </div>
 
             <hr class="my-3">
             <button class="ctrl-btn" style="background:#e0f2fe;color:#0369a1;"

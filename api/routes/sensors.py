@@ -56,6 +56,8 @@ def ingest_sensor_reading():
 
     body = request.get_json(silent=True) or {}
     device_id = body.get("device_id")
+    quality_status = body.get("quality_status", "GOOD").upper()
+    
     if not device_id:
         return jsonify({"error": "device_id is required"}), 400
 

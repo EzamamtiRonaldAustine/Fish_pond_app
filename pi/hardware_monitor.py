@@ -486,6 +486,9 @@ class HardwareController:
         self._pump_start: float = 0.0
         self._lock = threading.Lock()
 
+        self._alert_silenced = False
+        self._last_quality_status = "GOOD"
+
         self._buzzer: object = None  # PWM object
         self.lcd = None
 
@@ -507,7 +510,7 @@ class HardwareController:
         self._buzzer.start(0)
         self._set_leds(0, 0, 0)
         GPIO.output(pins["PUMP"], GPIO.HIGH)   # Relay off by default
-        logger.info("✅ GPIO initialised")
+        logger.info("✅ GPIO initialised — Pump held OFF")
 
     def _init_lcd(self):
         if CharLCD is None:
@@ -536,16 +539,22 @@ class HardwareController:
             except Exception:
                 pass
 
+        if quality_status != self._last_quality_status:
+            self._alert_silenced = False
+            self._last_quality_status = quality_status
+
         self._led_status_str = quality_status
 
         if quality_status == "GOOD":
             self._set_leds(1, 0, 0)   # Blue LED = GOOD
         elif quality_status == "WARNING":
             self._set_leds(0, 1, 0)   # Yellow LED = WARNING
-            self._beep(0.2, 0.4)
+            if not self._alert_silenced:
+                self._beep(0.2, 0.4)
         elif quality_status == "CRITICAL":
             self._set_leds(0, 0, 1)   # Red LED = CRITICAL
-            self._beep(1.0, 1.2)
+            if not self._alert_silenced:
+                self._beep(1.0, 1.2)
 
     def _beep(self, on_delay: float, off_delay: float) -> None:
         if self._buzzer is None:
@@ -579,14 +588,12 @@ class HardwareController:
         return True
 
     def stop_pump(self) -> None:
-        """Stop the pump immediately."""
+        """Stop the pump immediately (forces high state on relay)."""
         with self._lock:
-            if not self._pump_running:
-                return
             self._pump_running = False
             self._pump_mode    = "OFF"
         if GPIO is not None:
-            GPIO.output(CFG.GPIO_PINS["PUMP"], GPIO.HIGH)  # HIGH = relay off
+            GPIO.output(CFG.GPIO_PINS["PUMP"], GPIO.HIGH)  # Force HIGH = relay off
         logger.info("⏹️  Pump stopped")
 
     def tick_pump(self) -> None:
@@ -1273,7 +1280,8 @@ class HardwareMonitor:
                 mode = command.split("_")[1]
                 self.hardware.start_pump(mode)
             elif command == "CLEAR_ALERT":
-                logger.info("Alert cleared by web command")
+                self.hardware._alert_silenced = True
+                logger.info("Alert silenced by web command")
             elif command == "SYSTEM_SHUTDOWN":
                 logger.info("Shutdown command received — stopping agent")
                 self.api.acknowledge_command(cid, success=True)
