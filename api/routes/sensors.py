@@ -59,9 +59,6 @@ def ingest_sensor_reading():
     if not device_id:
         return jsonify({"error": "device_id is required"}), 400
 
-    # Hardware sends rule-based fallback status; we try to override it with AI
-    quality_status = str(body.get("quality_status", "GOOD")).upper()
-    
     # ── AI Assessment (ML 2 Integration) ─────────────────────────
     try:
         if all(k in body for k in ("temperature", "ph", "nitrogen", "phosphorus")):
@@ -72,13 +69,12 @@ def ingest_sensor_reading():
                 nitrite=float(body["nitrogen"]),  
                 phosphorus=float(body["phosphorus"])
             )
-            # Override hardware's rule-base with actual ML 2 label (Excellent/Good/Poor)
+            # Store AI Assessment separately - DO NOT overwrite hardware status
             ai_label = assessment.get("quality_label", "").upper()
             if ai_label:
-                quality_status = ai_label
-                logger.info(f"AI Override: Hardware reported {body.get('quality_status')} -> ML assessed {ai_label}")
+                logger.info(f"AI Assessment: ML assessed {ai_label} (Hardware reported {body.get('quality_status')})")
     except Exception as ml_err:
-        logger.error(f"ML Inference failed on sensor ingest, falling back to hardware status: {ml_err}")
+        logger.error(f"ML Inference failed on sensor ingest: {ml_err}")
     # ─────────────────────────────────────────────────────────────
 
     # Enforce known states (note: Excellent replaces Good in ML terminology, but DB expects Good/Warning/Critical)

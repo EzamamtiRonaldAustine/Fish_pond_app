@@ -669,6 +669,15 @@ class HardwareController:
 
     def cleanup(self) -> None:
         self.stop_pump()
+        if GPIO is not None:
+            # Explicitly hold pump relay OFF (HIGH) before releasing pins
+            # This helps prevent the relay from triggering as an accidental input
+            try:
+                GPIO.output(CFG.GPIO_PINS["PUMP"], GPIO.HIGH)
+                time.sleep(0.1)
+            except Exception:
+                pass
+
         if self._buzzer:
             try:
                 self._buzzer.stop()

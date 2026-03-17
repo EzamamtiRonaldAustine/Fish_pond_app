@@ -95,8 +95,8 @@ FEATURE_COLS = [
 SENSOR_BOUNDS = {
     "temperature": ( 0.0,  50.0),
     "ph":          ( 0.0,  14.0),
-    "nitrite":     ( 0.0, 200.0), # Expanded to 200 mg/L to accommodate raw N from NPK
-    "phosphorus":  ( 0.0,  20.0),
+    "nitrite":     ( 0.0, 500.0), # Expanded for raw N from NPK (logic handles scaling)
+    "phosphorus":  ( 0.0, 300.0), # Expanded for raw P from NPK (logic handles scaling)
 }
 
 
@@ -167,20 +167,30 @@ def engineer_features(
     """
     
     # --- HARDWARE ADAPTATION LAYER ---
-    # The AWD model expects Nitrite (0.0 to ~2.0 mg/L typical range).
-    # We are receiving Total Nitrogen (N) from an NPK sensor (0.0 to 100.0+ mg/L).
-    # We must aggressively scale down N to "simulated NO2" so the Random Forest doesn't panic.
-    # A generic scaling factor of 0.05 is applied (e.g., 45 mg/L Nitrogen -> 2.25 simulated NO2)
-    N_TO_NO2_SCALE = 0.05
+    # The AWD model expects Nitrite (0.0 to ~2.0 mg/L typical range, max 5.0).
+    # We receive raw Total Nitrogen (N) and Phosphorus (P) in mg/kg (0 to 200+).
+    #
+    # 1. Nitrogen to Simulated Nitrite:
+    # Scale factor 0.015 (e.g., 100 mg/kg N -> 1.5 mg/L simulated NO2)
+    # This keeps "normal" high N levels in the 'Acceptable' zone of the model.
+    N_TO_NO2_SCALE = 0.015
     scaled_nitrite = nitrite * N_TO_NO2_SCALE
-    logger.warning("Hardware Adaptation: Raw N (%.2f) scaled to simulated NO2 (%.2f)", nitrite, scaled_nitrite)
+    
+    # 2. Phosphorus Scaling/Clamping:
+    # Scale factor 0.05 (e.g., 100 mg/kg P -> 5.0 mg/L simulated P)
+    # The model's training data maxed at 5.0; we clamp the internal surrogate to 8.0 max.
+    P_TO_P_SCALE   = 0.05
+    surrogate_p    = min(phosphorus * P_TO_P_SCALE, 8.0)
+    
+    logger.info("Adaptation: N(%.1f)->NO2(%.2f), P(%.1f)->P(%.2f)", 
+                nitrite, scaled_nitrite, phosphorus, surrogate_p)
     
     return {
         # ── Raw (4) ──────────────────────────────────────────────────────
         "Temp":                       temperature,
         "pH`":                        ph,
         "Nitrite (mg L-1 )":          scaled_nitrite,
-        "Phosphorus (mg L-1 )":       phosphorus,
+        "Phosphorus (mg L-1 )":       surrogate_p,
         # ── Log transforms (2) ───────────────────────────────────────────
         # log1p safe for zero values
         "nitrite_log":                np.log1p(scaled_nitrite),
