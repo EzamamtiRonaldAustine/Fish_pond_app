@@ -1,16 +1,6 @@
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.env
-.venv
-env/
-*.db
-.DS_Store
+# .gitignore — Smart Fish Pond Monitoring System
 
-# .gitignore — put this in your project root
-
-# Environment files (CRITICAL: Never commit these)
+# --- Environment & Secrets ---
 .env
 .env.local
 .env.production
@@ -19,59 +9,49 @@ env/
 *.key
 *.crt
 
-# Python
+# --- Python ---
 __pycache__/
 *.py[cod]
 *.pyo
 venv/
 .venv/
+env/
 *.egg-info/
 dist/
 build/
-
-# Database
-*.sql.bak
-
-# ML Models (can be large binary files)
-ml/models/*.pkl
-ml/models/*.h5
-ml/data/*.csv
-
-# IDE files
-.vscode/
-.idea/
-*.swp
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-logs/
-
-# Testing
+.cache/
+.pytest_cache/
 .coverage
 htmlcov/
 
-# Railway and deployment
-railway-temp/
-*.tmp
-
-# Temporary and cache files
-*.tmp
-*.temp
-.cache/
-.pytest_cache/
-
-# Large data files
-*.xlsx
-*.xls
-!IoTPond6.xlsx  # Keep the sample data file
-
-# Backup files
+# --- Local Development & Configuration ---
+.vscode/
+.idea/
+*.swp
 *.bak
 *.backup
+Thumbs.db
+.DS_Store
+webServerApiSettings.json
 
-# Unused templates
-dashboard/templates/ml_analysis.html
+# --- Database & Data ---
+*.db
+*.sql
+!database/*.sql   # Preserve schema files in the database directory
+local_test_data.sql
+
+# --- Large Files ---
+*.xlsx
+*.xls
+!IoTPond6.xlsx    # Keep the sample data file mentioned previously
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Temporary / Deployment ---
+railway-temp/
+*.tmp
+*.temp
+.railway/
+dashboard/templates/ml_analysis.html # Unused template
