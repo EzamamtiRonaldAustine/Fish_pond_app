@@ -678,6 +678,21 @@ class HardwareController:
             except Exception:
                 pass
 
+        # ── LCD shutdown ─────────────────────────────────────────────────────
+        if self.lcd is not None:
+            try:
+                # Show a brief "offline" message, then blank display & backlight
+                self.lcd.clear()
+                self.lcd.cursor_pos = (0, 0)
+                self.lcd.write_string("  System Offline")
+                self.lcd.cursor_pos = (1, 0)
+                self.lcd.write_string("   Shutting down")
+                time.sleep(1.5)
+                self.lcd.clear()
+                self.lcd.backlight_enabled = False
+            except Exception as exc:
+                logger.debug(f"LCD cleanup error: {exc}")
+
         if self._buzzer:
             try:
                 self._buzzer.stop()
@@ -685,7 +700,7 @@ class HardwareController:
                 pass
         if GPIO is not None:
             GPIO.cleanup()
-        logger.info("GPIO cleaned up")
+        logger.info("GPIO and LCD cleaned up")
 
 
 # =============================================================================

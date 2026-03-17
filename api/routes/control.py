@@ -20,7 +20,7 @@ Authentication patterns
 
 from flask import Blueprint, jsonify, request, current_app
 from flask_jwt_extended import jwt_required
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import RealDictCursor, Json as PgJson
 from datetime import datetime
 import logging
 import os
@@ -131,9 +131,12 @@ def queue_command(device_id: int):
         # Verify device exists
         cur.execute("SELECT id FROM devices WHERE id = %s", (device_id,))
         if not cur.fetchone():
+            cur.close()
+            conn.close()
             return jsonify({"error": "Device not found"}), 404
 
         # Insert command into queue
+        # PgJson() wraps the dict so psycopg2 correctly serialises it for the JSONB column
         cur.execute(
             """
             INSERT INTO hardware_commands
@@ -141,7 +144,7 @@ def queue_command(device_id: int):
             VALUES (%s, %s, %s, %s)
             RETURNING id
             """,
-            (device_id, command, parameters, user["id"]),
+            (device_id, command, PgJson(parameters), user["id"]),
         )
         row = cur.fetchone()
         conn.commit()
@@ -161,6 +164,15 @@ def queue_command(device_id: int):
 
     except Exception as exc:
         logger.error(f"Error queuing command: {exc}")
+        if conn:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            try:
+                conn.close()
+            except Exception:
+                pass
         return jsonify({"error": "Failed to queue command"}), 500
 
 
