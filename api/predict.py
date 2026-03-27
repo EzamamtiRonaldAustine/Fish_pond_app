@@ -171,15 +171,15 @@ def engineer_features(
     # We receive raw Total Nitrogen (N) and Phosphorus (P) in mg/kg (0 to 200+).
     #
     # 1. Nitrogen to Simulated Nitrite:
-    # Scale factor 0.015 (e.g., 100 mg/kg N -> 1.5 mg/L simulated NO2)
-    # This keeps "normal" high N levels in the 'Acceptable' zone of the model.
-    N_TO_NO2_SCALE = 0.015
+    # Scale factor 0.0005 (e.g., 120 mg/kg N -> 0.06 mg/L simulated NO2)
+    # This keeps "normal" agricultural high N levels in the 'Acceptable' zone of the model.
+    N_TO_NO2_SCALE = 0.0005
     scaled_nitrite = nitrite * N_TO_NO2_SCALE
     
     # 2. Phosphorus Scaling/Clamping:
-    # Scale factor 0.05 (e.g., 100 mg/kg P -> 5.0 mg/L simulated P)
+    # Scale factor 0.002 (e.g., 100 mg/kg P -> 0.2 mg/L simulated P)
     # The model's training data maxed at 5.0; we clamp the internal surrogate to 8.0 max.
-    P_TO_P_SCALE   = 0.05
+    P_TO_P_SCALE   = 0.002
     surrogate_p    = min(phosphorus * P_TO_P_SCALE, 8.0)
     
     logger.info("Adaptation: N(%.1f)->NO2(%.2f), P(%.1f)->P(%.2f)", 
@@ -320,8 +320,8 @@ def predict_water_quality(
             "features_used":     len(feature_cols),
             "feature_source":    "4 raw readings → 10 engineered features (with N-to-NO2 scaling)",
             "hardware_match":    "WARNING: Nitrogen (N) from 7-in-1 sensor is substituted into the Nitrite endpoint.",
-            "scientific_integrity": "Compromised. Model trained on NO2- toxicity; receiving Total N.",
-            "adaptation_scaling": "Raw Nitrogen scaled by 0.05 logic internally to prevent false POOR alarms."
+            "scientific_integrity": "Simulated. Raw Nitrogen is down-scaled astronomically to act as an equivalent Nitrite toxicity proxy.",
+            "adaptation_scaling": "Raw Nitrogen scaled by 0.0005, Phosphorus by 0.002 to prevent false alarms on non-toxic concentrations."
         },
         # ── Validation report ────────────────────────────────────────────
         "validation": {

@@ -171,7 +171,7 @@
     }
 
     #historyChart {
-        max-height: 650px;
+        max-height: 600px;
     }
 </style>
 {% endblock %}
@@ -731,7 +731,7 @@
 
         const tbody = document.getElementById('table-body');
         const reversedTimestamps = [...sortedTimestamps].reverse();
-        
+
         tbody.innerHTML = reversedTimestamps.map(ts => {
             const values = selectedParameters.map(param => {
                 const point = currentData[param].data.find(p => p.timestamp === ts);
@@ -769,12 +769,12 @@
     function exportCSV() {
         const deviceName = document.getElementById('device-selector').options[document.getElementById('device-selector').selectedIndex].text;
         const period = document.getElementById('period').options[document.getElementById('period').selectedIndex].text;
-        
+
         let csv = `AquaGuardian Smart Fish Pond Report\n`;
         csv += `Device: ${deviceName}\n`;
         csv += `Period: ${period}\n`;
         csv += `Generated: ${new Date().toLocaleString()}\n\n`;
-        
+
         csv += 'Timestamp,' + selectedParameters.map(p => PARAMETER_CONFIG[p].label).join(',') + '\n';
         sortedTimestamps.forEach(ts => {
             const vals = selectedParameters.map(param => {
@@ -795,11 +795,11 @@
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('l', 'mm', 'a4');
         const deviceName = document.getElementById('device-selector').options[document.getElementById('device-selector').selectedIndex].text;
-        
+
         doc.setFontSize(22);
         doc.setTextColor(30, 60, 114);
         doc.text('AquaGuardian: Water Quality Analytics Report', 14, 20);
-        
+
         doc.setFontSize(10);
         doc.setTextColor(100);
         doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
@@ -826,7 +826,7 @@
         doc.addPage();
         doc.setFontSize(14);
         doc.text('Detailed Sensor Readings Log', 14, 15);
-        
+
         const tableHeader = ['Timestamp', ...selectedParameters.map(p => PARAMETER_CONFIG[p].label)];
         const tableBody = sortedTimestamps.map(ts => [
             new Date(ts).toLocaleString(),
@@ -851,7 +851,7 @@
     function exportXLSX() {
         const wb = XLSX.utils.book_new();
         const deviceName = document.getElementById('device-selector').options[document.getElementById('device-selector').selectedIndex].text;
-        
+
         const dataRows = sortedTimestamps.map(ts => {
             const row = { 'Timestamp': new Date(ts).toLocaleString() };
             selectedParameters.forEach(param => {
@@ -862,7 +862,7 @@
         });
         const wsData = XLSX.utils.json_to_sheet(dataRows);
         XLSX.utils.book_append_sheet(wb, wsData, "Sensor Data");
-        
+
         const summaryRows = selectedParameters.filter(p => !PARAMETER_CONFIG[p].isString).map(param => {
             const data = currentData[param].data.map(p => parseFloat(p.value));
             return {
@@ -876,7 +876,7 @@
         });
         const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
         XLSX.utils.book_append_sheet(wb, wsSummary, "Analytics Summary");
-        
+
         XLSX.writeFile(wb, `AquaGuardian_Data_${new Date().toISOString().split('T')[0]}.xlsx`);
     }
 

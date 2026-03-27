@@ -37,6 +37,7 @@ import json
 import logging
 import re
 import socket
+import ssl
 import subprocess
 import sys
 import threading
@@ -583,7 +584,10 @@ class HardwareController:
             self._pump_running = True
             self._pump_start   = time.time()
         if GPIO is not None:
-            GPIO.output(CFG.GPIO_PINS["PUMP"], GPIO.LOW)   # LOW = relay on
+            try:
+                GPIO.output(CFG.GPIO_PINS["PUMP"], GPIO.LOW)   # LOW = relay on
+            except RuntimeError as exc:
+                logger.debug(f"GPIO error in start_pump: {exc}")
         logger.info(f"▶️  Pump started in {mode} mode")
         return True
 
@@ -593,7 +597,10 @@ class HardwareController:
             self._pump_running = False
             self._pump_mode    = "OFF"
         if GPIO is not None:
-            GPIO.output(CFG.GPIO_PINS["PUMP"], GPIO.HIGH)  # Force HIGH = relay off
+            try:
+                GPIO.output(CFG.GPIO_PINS["PUMP"], GPIO.HIGH)  # Force HIGH = relay off
+            except RuntimeError as exc:
+                logger.debug(f"GPIO error in stop_pump: {exc}")
         logger.info("⏹️  Pump stopped")
 
     def tick_pump(self) -> None:
@@ -894,6 +901,24 @@ class ThingSpeakClient:
             logger.error(f"Backup CSV write failed: {exc}")
 
 
+class SSLCustomAdapter(HTTPAdapter):
+    """
+    A custom HTTP adapter that forces a smaller SSL/TLS handshake.
+    Used to bypass MTU-related 'Unexpected EOF' errors on restricted networks.
+    """
+    def init_poolmanager(self, *args, **kwargs):
+        # Create a custom SSL context
+        context = ssl.create_default_context()
+        
+        # Use a high-security but 'small handshake' cipher set.
+        # This prevents the 'Client Hello' from exceeding the 1500-byte MTU limit
+        # by avoiding massive Post-Quantum key exchange extensions.
+        context.set_ciphers('ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256')
+        
+        kwargs['ssl_context'] = context
+        return super().init_poolmanager(*args, **kwargs)
+
+
 # =============================================================================
 # ⑥ API CLIENT  (primary integration with Flask/PostgreSQL web app)
 # =============================================================================
@@ -1034,15 +1059,16 @@ class APIClient:
 
     @staticmethod
     def _build_session() -> requests.Session:
-        """Build a requests session with automatic retry on transient errors."""
+        """Build a requests session with automatic retry and MTU-friendly SSL."""
         session = requests.Session()
         retry = Retry(
             total=3,
             backoff_factor=0.5,
             status_forcelist=(429, 500, 502, 503, 504),
         )
-        adapter = HTTPAdapter(max_retries=retry)
-        session.mount("http://",  adapter)
+        # Use our custom adapter for HTTPS to ensure small handshake packets
+        adapter = SSLCustomAdapter(max_retries=retry)
+        session.mount("http://",  HTTPAdapter(max_retries=retry))
         session.mount("https://", adapter)
         return session
 
@@ -1068,6 +1094,7 @@ class HardwareMonitor:
     def __init__(self):
         self._start_time = time.time()
         self._running    = True
+        self._stopping   = False
 
         # Sub-components
         self.sensors    = SensorReader()
@@ -1335,6 +1362,11 @@ class HardwareMonitor:
 
     def stop(self) -> None:
         """Request graceful shutdown of all threads."""
+        with self._lock:
+            if self._stopping:
+                return
+            self._stopping = True
+            
         logger.info("Stopping hardware agent...")
         self._running = False
         self.hardware.cleanup()
