@@ -16,6 +16,14 @@ def about_page():
 def contact_page():
     return render_template("contact.html")
 
+@pages_bp.route("/inbox")
+def inbox_page():
+    # Frontend logic will check if user is admin when making the API call.
+    if session.get('user', {}).get('role') != 'admin':
+        flash("Unauthorized access. Admin only.", "danger")
+        return redirect(url_for('pages.home'))
+    return render_template("inbox.html")
+
 @pages_bp.route("/login", methods=["GET", "POST"])
 def login_page():
     if request.method == "POST":

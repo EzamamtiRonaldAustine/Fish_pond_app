@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Inbox - AquaGuardian{% endblock %}
+
+{% block extra_css %}
+<style>
+    .inbox-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    .message-card {
+        border-left: 5px solid #6c757d;
+        transition: all 0.2s ease;
+        margin-bottom: 15px;
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    .message-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .message-card.unread {
+        border-left-color: #0d6efd;
+        background-color: #f8fbff;
+    }
+    .message-card.priority-high {
+        border-left-color: #dc3545;
+    }
+    .message-card.replied {
+        border-left-color: #28a745;
+        opacity: 0.8;
+    }
+    .avatar-circle {
+        width: 45px;
+        height: 45px;
+        background-color: #e9ecef;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: #495057;
+        font-size: 1.2rem;
+    }
+    .message-meta {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+    .badge-verified {
+        background-color: #e6f4ea;
+        color: #1e8e3e;
+        border: 1px solid #ceead6;
+    }
+    .badge-guest {
+        background-color: #f8f9fa;
+        color: #5f6368;
+        border: 1px solid #dadce0;
+    }
+    
+    .reply-text {
+        background: #f8f9fa;
+        border-left: 3px solid #28a745;
+        padding: 10px;
+        font-size: 0.9rem;
+        border-radius: 0 5px 5px 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="inbox-container">
+    <div class="d-flex justify-content-between align-items-center mb-4 text-white">
+        <h2><i class="bi bi-inbox-fill"></i> Support Inbox</h2>
+        <button class="btn btn-light" onclick="loadMessages()">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-4" id="messages-container">
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reply Modal -->
+<div class="modal fade" id="replyModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-reply-fill"></i> Reply to Message</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-4 p-3 bg-light rounded border">
+                    <h6 class="fw-bold mb-1" id="reply-to-name">Sender Name</h6>
+                    <div class="text-muted small mb-2"><i class="bi bi-envelope"></i> <span id="reply-to-email"></span></div>
+                    <div class="fw-bold text-dark mb-1" id="reply-to-subject"></div>
+                    <p class="mb-0 text-dark small" id="reply-to-message" style="white-space: pre-wrap;"></p>
+                </div>
+                
+                <form id="reply-form">
+                    <input type="hidden" id="reply-msg-id">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Your Response:</label>
+                        <textarea class="form-control" id="reply-text" rows="6" required placeholder="Type your professional response here..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitReply()" id="btn-send-reply">
+                    <i class="bi bi-send-fill"></i> Send Email
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let currentMessages = [];
+    const replyModal = new bootstrap.Modal(document.getElementById('replyModal'));
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadMessages();
+    });
+
+    async function loadMessages() {
+        const container = document.getElementById('messages-container');
+        try {
+            const response = await fetch('/api-proxy/contact/messages');
+            if (response.status === 401 || response.status === 403) {
+                container.innerHTML = `<div class="alert alert-danger">Access denied. You must be an administrator.</div>`;
+                return;
+            }
+            
+            const data = await response.json();
+            if (data.error) throw new Error(data.error);
+            
+            currentMessages = data.messages || [];
+            renderMessages();
+        } catch (error) {
+            container.innerHTML = `<div class="alert alert-danger">Failed to load messages: ${error.message}</div>`;
+        }
+    }
+
+    function renderMessages() {
+        const container = document.getElementById('messages-container');
+        if (currentMessages.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-inbox fs-1"></i>
+                    <h4 class="mt-3">Inbox is Empty</h4>
+                    <p>No new messages from farmers.</p>
+                </div>`;
+            return;
+        }
+
+        let html = '';
+        currentMessages.forEach(msg => {
+            const initial = msg.sender_name.charAt(0).toUpperCase();
+            
+            // Badges
+            let priorityBadge = '';
+            if (msg.priority === 'High') {
+                priorityBadge = `<span class="badge bg-danger ms-2"><i class="bi bi-exclamation-triangle-fill"></i> URGENT</span>`;
+            } else if (msg.priority === 'Medium') {
+                priorityBadge = `<span class="badge bg-warning text-dark ms-2">Issue</span>`;
+            }
+            
+            const verifyBadge = msg.is_verified_user 
+                ? `<span class="badge badge-verified"><i class="bi bi-check-circle-fill"></i> Verified ${msg.sender_role || 'User'}</span>`
+                : `<span class="badge badge-guest"><i class="bi bi-person"></i> Guest</span>`;
+
+            // Card Style
+            let cardClass = 'message-card p-3';
+            if (!msg.is_read) cardClass += ' unread';
+            if (msg.priority === 'High' && !msg.is_replied) cardClass += ' priority-high';
+            if (msg.is_replied) cardClass += ' replied';
+
+            // Format date
+            const dateObj = new Date(msg.created_at);
+            const dateStr = dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+            html += `
+                <div class="${cardClass}" id="msg-${msg.id}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="avatar-circle me-3">${initial}</div>
+                            <div>
+                                <h5 class="mb-0 fw-bold">
+                                    ${msg.sender_name} 
+                                    ${verifyBadge}
+                                    ${priorityBadge}
+                                </h5>
+                                <div class="message-meta">
+                                    <a href="mailto:${msg.sender_email}" class="text-decoration-none">${msg.sender_email}</a>
+                                    ${msg.sender_phone ? ` | <i class="bi bi-telephone"></i> ${msg.sender_phone}` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <div class="message-meta mb-2">${dateStr}</div>
+                            ${!msg.is_replied ? `
+                                <button class="btn btn-sm btn-outline-primary" onclick="openReplyModal(${msg.id})">
+                                    <i class="bi bi-reply"></i> Reply
+                                </button>
+                            ` : `
+                                <span class="badge bg-success"><i class="bi bi-check-all"></i> Replied</span>
+                            `}
+                        </div>
+                    </div>
+                    
+                    <div class="mt-2 ms-5 ps-3 border-start">
+                        <h6 class="fw-bold">${msg.subject}</h6>
+                        <p class="mb-2" style="white-space: pre-wrap;">${msg.message}</p>
+                        
+                        ${msg.is_replied && msg.reply_text ? `
+                            <div class="reply-text mt-3">
+                                <strong><i class="bi bi-reply-all"></i> Your Reply:</strong><br>
+                                <span style="white-space: pre-wrap;">${msg.reply_text}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+        
+        // Mark all loaded messages as read implicitly (if not replied)
+        // Or we could attach standard click-to-read functionality.
+    }
+
+    async function openReplyModal(id) {
+        const msg = currentMessages.find(m => m.id === id);
+        if (!msg) return;
+
+        document.getElementById('reply-msg-id').value = id;
+        document.getElementById('reply-to-name').innerText = msg.sender_name;
+        document.getElementById('reply-to-email').innerText = msg.sender_email;
+        document.getElementById('reply-to-subject').innerText = "Subject: " + msg.subject;
+        document.getElementById('reply-to-message').innerText = msg.message;
+        document.getElementById('reply-text').value = '';
+        
+        // Mark as read immediately when opening the reply box
+        if (!msg.is_read) {
+            fetch(`/api-proxy/contact/messages/${id}/read`, { method: 'POST' }).then(()=>loadMessages());
+        }
+
+        replyModal.show();
+    }
+
+    async function submitReply() {
+        const id = document.getElementById('reply-msg-id').value;
+        const text = document.getElementById('reply-text').value.trim();
+        const btn = document.getElementById('btn-send-reply');
+
+        if (!text) {
+            alert("Please type a response first.");
+            return;
+        }
+
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch(`/api-proxy/contact/messages/${id}/reply`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reply_text: text })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                replyModal.hide();
+                loadMessages(); // Refresh UI
+            } else {
+                alert("Error: " + (data.error || "Failed to send reply"));
+            }
+        } catch (error) {
+            alert("System error sending email.");
+        } finally {
+            btn.innerHTML = '<i class="bi bi-send-fill"></i> Send Email';
+            btn.disabled = false;
+        }
+    }
+</script>
+{% endblock %}

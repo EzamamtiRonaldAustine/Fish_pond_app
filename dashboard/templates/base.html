@@ -190,13 +190,14 @@
                     {% endif %}
                     {% if session.get('user', {}).get('role') == 'admin' %}
                     <li class="nav-item"><a class="nav-link" href="/users"><i class="bi bi-people"></i> Users</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/inbox"><i class="bi bi-inbox-fill"></i> Inbox</a></li>
                     {% endif %}
                     {% else %}
                     <!-- Public visitors see these -->
                     <li class="nav-item"><a class="nav-link" href="/about"><i class="bi bi-info-circle"></i> About</a>
                     </li>
-                    <li class="nav-item"><a class="nav-link" href="/contact"><i class="bi bi-telephone"></i> Contact</a>
-                    </li>
+                    <li class="nav-item"><a class="nav-link" href="/contact"><i class="bi bi-telephone"></i> Contact</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/contact#faq-section"><i class="bi bi-question-circle"></i> FAQ</a></li>
                     {% endif %}
 
                     {% if session.get('token') %}

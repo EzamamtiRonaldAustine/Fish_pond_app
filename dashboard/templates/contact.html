@@ -31,6 +31,10 @@
         align-items: center;
         justify-content: center;
     }
+
+    #faq-section {
+        scroll-margin-top: 100px;
+    }
 </style>
 {% endblock %}
 
@@ -87,10 +91,12 @@
                 <label class="form-label">Subject *</label>
                 <select class="form-select" name="subject" required>
                     <option value="">Select a subject</option>
-                    <option value="device_inquiry">Device Inquiry</option>
-                    <option value="technical_support">Technical Support</option>
-                    <option value="partnership">Partnership</option>
-                    <option value="other">Other</option>
+                    <option value="Device Emergency">Device Emergency (Urgent)</option>
+                    <option value="Water Quality Alert">Water Quality Alert</option>
+                    <option value="Sensor Failure">Sensor Failure</option>
+                    <option value="General Inquiry">General Inquiry</option>
+                    <option value="Partnership">Partnership</option>
+                    <option value="Other">Other</option>
                 </select>
             </div>
             <div class="col-12">
@@ -133,34 +139,146 @@
     </div>
 </div>
 
-<div class="contact-card text-center">
-    <h2 class="mb-3">Frequently Asked Questions</h2>
-    <p class="lead mb-4">Have questions? Check our FAQ or contact us directly</p>
-    <a href="/" class="btn btn-outline-primary">
-        <i class="bi bi-question-circle"></i> View FAQ
-    </a>
+<div class="contact-card" id="faq-section">
+    <h2 class="mb-4 text-center"><i class="bi bi-question-circle"></i> Frequently Asked Questions</h2>
+    <p class="text-center text-muted mb-4">Common questions about smart pond monitoring and fish farming best practices.</p>
+    
+    <div class="accordion" id="faqAccordion">
+        <!-- FAQ 1 -->
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingOne">
+                <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+                    How do water quality fluctuations actually affect my fish?
+                </button>
+            </h2>
+            <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#faqAccordion">
+                <div class="accordion-body">
+                    Recent research (such as studies in Uganda by Tumwesigye et al., 2022) shows that deviations in <strong>pH, Temperature, and Mineral levels</strong> directly cause stunted growth and low harvest weights. When fish are stressed by poor water quality, their immune systems weaken, making them vulnerable to lethal infections like <strong>Aeromonas (Fin Rot/Ulcers)</strong> or <strong>Columnaris</strong>. Our system tracks these metrics 24/7 so you can take action before your fish become symptomatic.
+                </div>
+            </div>
+        </div>
+        
+        <!-- FAQ 2 -->
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingTwo">
+                <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                    What are the risks of high Nitrogen and Phosphorus levels?
+                </button>
+            </h2>
+            <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#faqAccordion">
+                <div class="accordion-body">
+                    High Nitrogen (Nitrates/Nitrites) leads directly to <strong>Ammonia Poisoning</strong> and <strong>Brown Blood Disease</strong>, which prevents fish blood from carrying oxygen effectively, even if the water looks clear. Phosphorus spikes often come from overfeeding. By monitoring these specific nutrients, our system helps you optimize your feeding 
+                    schedules—saving you money on feed—and alerts you exactly when a water flush is necessary to prevent mass mortality.
+                </div>
+            </div>
+        </div>
+
+        <!-- FAQ 3 -->
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingThree">
+                <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                    How does the automated pump control protect my pond?
+                </button>
+            </h2>
+            <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#faqAccordion">
+                <div class="accordion-body">
+                    Rapid changes in temperature or water acidity can kill an entire stock in hours. Our hardware uses local edge-computing to automatically trigger <strong>water pumps</strong> the moment parameters hit critical thresholds. Research shows that such real-time automated IoT interventions consistently maintain fish survival rates <strong>above 90%</strong> in tropical environments by stabilizing the environment before human intervention is even possible.
+                </div>
+            </div>
+        </div>
+
+        <!-- FAQ 4 -->
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingFour">
+                <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
+                    Can the system operate independently without the web app or internet?
+                </button>
+            </h2>
+            <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#faqAccordion">
+                <div class="accordion-body">
+                    Yes! The heart of our system is an intelligent hardware unit (powered by Raspberry Pi) installed directly at the pond. It handles all sensor processing and logic locally. Even without an internet connection or the web dashboard, the device remains an active <strong>standalone guardian</strong>—it will continue monitoring your water, triggering on-site physical alerts, and activating pumps based on your pre-set safety protocols.
+                </div>
+            </div>
+        </div>
+
+        <!-- FAQ 5 -->
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingFive">
+                <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFive" aria-expanded="false" aria-controls="collapseFive">
+                    How does tracking Turbidity and Conductivity save me money?
+                </button>
+            </h2>
+            <div id="collapseFive" class="accordion-collapse collapse" aria-labelledby="headingFive" data-bs-parent="#faqAccordion">
+                <div class="accordion-body">
+                    High Turbidity (cloudiness) and Electrical Conductivity (EC) are major indicators of accumulated waste and mineral imbalance. High turbidity irritates fish gills and reduces growth rates. By tracking these metrics, you can identify exactly when your pond is becoming "overloaded," allowing you to manage water quality precisely rather than relying on expensive, scheduled water changes that might not be needed.
+                </div>
+            </div>
+        </div>
+
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    document.getElementById('contact-form').addEventListener('submit', (e) => {
+    document.getElementById('contact-form').addEventListener('submit', async (e) => {
         e.preventDefault();
+        
+        const form = e.target;
+        const msgDiv = document.getElementById('contact-message');
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn.innerHTML;
 
-        // In a real application, this would send to a backend
-        const messageDiv = document.getElementById('contact-message');
-        messageDiv.innerHTML = `
-        <div class="alert alert-success">
-            <strong>Message Sent!</strong> Thank you for contacting us. We'll get back to you within 24 hours.
-        </div>
-    `;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...';
+        submitBtn.disabled = true;
 
-        e.target.reset();
+        const formData = {
+            name: form.name.value,
+            email: form.email.value,
+            phone: form.phone.value,
+            subject: form.subject.value,
+            message: form.message.value
+        };
 
-        // Remove message after 5 seconds
-        setTimeout(() => {
-            messageDiv.innerHTML = '';
-        }, 5000);
+        try {
+            const response = await fetch('/api-proxy/contact/submit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                msgDiv.innerHTML = `
+                    <div class="alert alert-success mt-3">
+                        <i class="bi bi-check-circle-fill"></i> <strong>Message Sent!</strong> ${data.message}
+                    </div>
+                `;
+                form.reset();
+            } else {
+                msgDiv.innerHTML = `
+                    <div class="alert alert-danger mt-3">
+                        <i class="bi bi-exclamation-triangle-fill"></i> <strong>Error:</strong> ${data.error || 'Failed to send message.'}
+                    </div>
+                `;
+            }
+        } catch (error) {
+            msgDiv.innerHTML = `
+                <div class="alert alert-danger mt-3">
+                    <i class="bi bi-emoji-frown-fill"></i> System error. Please try again later.
+                </div>
+            `;
+        } finally {
+            submitBtn.innerHTML = originalBtnText;
+            submitBtn.disabled = false;
+            
+            setTimeout(() => {
+                msgDiv.innerHTML = '';
+            }, 8000);
+        }
     });
 </script>
 {% endblock %}
