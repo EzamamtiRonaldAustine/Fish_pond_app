@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
-from ..api_client import login_api, signup_api
+from ..api_client import login_api, signup_api, google_login_api
+from flask import jsonify
 import os
 
 pages_bp = Blueprint('pages', __name__)
@@ -79,6 +80,25 @@ def signup_page():
                              google_client_id=os.environ.get("GOOGLE_CLIENT_ID"))
 
     return render_template("signup.html", google_client_id=os.environ.get("GOOGLE_CLIENT_ID"))
+
+@pages_bp.route("/auth/google/callback", methods=["POST"])
+def google_callback():
+    """Handle Google OAuth login and create dashboard session."""
+    data = request.json
+    credential = data.get("credential")
+    
+    if not credential:
+        return jsonify({"error": "No credential provided"}), 400
+        
+    result = google_login_api(credential)
+    
+    if "access_token" in result:
+        # Create user session for the dashboard
+        session['token'] = result['access_token']
+        session['user'] = result.get('user', {})
+        return jsonify(result), 200
+    else:
+        return jsonify(result), 400
 
 @pages_bp.route("/logout")
 def logout():

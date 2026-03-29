@@ -71,3 +71,9 @@ def signup_api(username, password, email, full_name, organization_id):
         'full_name': full_name,
         'organization_id': organization_id,
     })
+
+def google_login_api(credential):
+    """Authenticate via Google OAuth."""
+    return call_api('/auth/google', method='POST', data={
+        'credential': credential
+    })
