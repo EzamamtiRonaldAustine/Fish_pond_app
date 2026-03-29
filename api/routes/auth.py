@@ -65,11 +65,15 @@ def google_login():
                 org_id = org['id'] if org else 1
                 
                 username = email.split('@')[0]
+                
+                # The users table requires a password_hash, provide a securely random fallback
+                fallback_hash = generate_password_hash(os.urandom(24).hex(), method='pbkdf2:sha256')
+                
                 cur.execute("""
-                    INSERT INTO users (username, email, full_name, google_id, role, organization_id)
-                    VALUES (%s, %s, %s, %s, 'farmer', %s)
+                    INSERT INTO users (username, password_hash, email, full_name, google_id, role, organization_id)
+                    VALUES (%s, %s, %s, %s, %s, 'farmer', %s)
                     RETURNING *
-                """, (username, email, name, google_id, org_id))
+                """, (username, fallback_hash, email, name, google_id, org_id))
                 user = cur.fetchone()
                 conn.commit()
         
