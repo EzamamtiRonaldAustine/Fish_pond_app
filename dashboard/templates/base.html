@@ -185,7 +185,7 @@
                     <!-- <li class="nav-item"><a class="nav-link" href="{{ url_for('ml.ml_analysis') }}"><i
                                 class="bi bi-cpu"></i> ML Analysis</a></li> -->
                     {% if session.get('user', {}).get('role') in ('admin', 'farmer') %}
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('control_views.control_page') }}"><i
+                    <li class="nav-item" id="nav-control-link"><a class="nav-link" href="{{ url_for('control_views.control_page') }}"><i
                                 class="bi bi-sliders"></i> Control</a></li>
                     {% endif %}
                     {% if session.get('user', {}).get('role') == 'admin' %}
@@ -291,32 +291,38 @@
     <script>
         // Wait for page to fully load
         document.addEventListener('DOMContentLoaded', function () {
-            const restrictedPages = ['/dashboard', '/history', '/alerts'];
+            const restrictedPages = ['/dashboard', '/history', '/alerts', '/control'];
             const currentPath = window.location.pathname;
 
-            // Only check on restricted pages
-            if (restrictedPages.includes(currentPath)) {
-                fetch('/api-proxy/auth/device-status')
-                    .then(r => {
-                        if (!r.ok) {
-                            throw new Error('Status check failed');
+            fetch('/api-proxy/auth/device-status')
+                .then(r => {
+                    if (!r.ok) {
+                        throw new Error('Status check failed');
+                    }
+                    return r.json();
+                })
+                .then(data => {
+                    if (!data.error && data.has_devices === false && data.user_role === 'farmer') {
+                        // Hide the control link across all pages
+                        const controlLink = document.getElementById('nav-control-link');
+                        if (controlLink) {
+                            controlLink.style.display = 'none';
                         }
-                        return r.json();
-                    })
-                    .then(data => {
-                        if (!data.error && data.has_devices === false && data.user_role === 'farmer') {
+
+                        // Block access if they are on a restricted page
+                        if (restrictedPages.includes(currentPath)) {
                             const modalElement = document.getElementById('noDeviceModal');
                             if (modalElement) {
                                 const modal = new bootstrap.Modal(modalElement);
                                 modal.show();
                             }
                         }
-                    })
-                    .catch(err => {
-                        console.error('Device check failed:', err);
-                        // Don't show modal on error - let user access page
-                    });
-            }
+                    }
+                })
+                .catch(err => {
+                    console.error('Device check failed:', err);
+                    // Don't show modal on error - let user access page
+                });
         });
     </script>
     {% endif %}

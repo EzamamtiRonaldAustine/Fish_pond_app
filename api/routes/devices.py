@@ -243,3 +243,54 @@ def assign_device():
     except Exception as e:
         logger.error(f"Error assigning device: {e}")
         return jsonify({'error': 'Failed to assign device'}), 500
+
+@devices_bp.route('/devices/unassign', methods=['POST'])
+@jwt_required()
+def unassign_device():
+    """Unassign a device from a user (admin only)."""
+    try:
+        admin_user = get_user_from_token()
+        if not admin_user or admin_user['role'] != 'admin':
+            return jsonify({'error': 'Insufficient permissions'}), 403
+        
+        data = request.get_json()
+        required = ['user_id', 'device_id']
+        if not all(field in data for field in required):
+            return jsonify({'error': 'Missing required fields: user_id, device_id'}), 400
+        
+        user_id = data['user_id']
+        device_id = data['device_id']
+        
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'Database unavailable'}), 503
+        
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Verify assignment exists in device_permissions
+        cur.execute("SELECT id FROM device_permissions WHERE user_id = %s AND device_id = %s", (user_id, device_id))
+        if not cur.fetchone():
+            # Check if they are the creator
+            cur.execute("SELECT created_by FROM devices WHERE id = %s", (device_id,))
+            device = cur.fetchone()
+            if device and device['created_by'] == user_id:
+                cur.close()
+                conn.close()
+                return jsonify({'error': 'User is the original owner. Cannot unassign. Modify ownership directly.'}), 400
+            
+            cur.close()
+            conn.close()
+            return jsonify({'error': 'User does not currently have this device assigned.'}), 404
+            
+        # Delete assignment
+        cur.execute("DELETE FROM device_permissions WHERE user_id = %s AND device_id = %s", (user_id, device_id))
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        return jsonify({'message': 'Device unassigned successfully'}), 200
+        
+    except Exception as e:
+        logger.error(f"Error unassigning device: {e}")
+        return jsonify({'error': 'Failed to unassign device'}), 500
