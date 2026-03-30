@@ -29,7 +29,7 @@ THINGSPEAK_INTERVAL: int = int(os.getenv("THINGSPEAK_INTERVAL", "60"))
 # ── Timing (Seconds) ───────────────────────────────────────────────────────
 SENSOR_READ_INTERVAL:   int = int(os.getenv("SENSOR_READ_INTERVAL",   "15"))
 LCD_REFRESH_INTERVAL:   int = int(os.getenv("LCD_REFRESH_INTERVAL",    "5"))
-API_SEND_INTERVAL:      int = int(os.getenv("API_SEND_INTERVAL",       "60"))
+API_SEND_INTERVAL:      int = int(os.getenv("API_SEND_INTERVAL",       "30"))
 COMMAND_POLL_INTERVAL:  int = int(os.getenv("COMMAND_POLL_INTERVAL",   "10"))
 HEARTBEAT_INTERVAL:     int = int(os.getenv("HEARTBEAT_INTERVAL",      "15"))
 WATCHDOG_INTERVAL:      int = int(os.getenv("WATCHDOG_INTERVAL",       "30"))

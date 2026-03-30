@@ -137,7 +137,9 @@ class AquaGuardianAgent:
                     self.cloud.post_data(
                         self.latest_data,
                         self.latest_assessment["overall"],
-                        self.latest_assessment["score"]
+                        self.latest_assessment["score"],
+                        self.turbid_sen.is_turbid(),
+                        self.latest_assessment.get("alerts", [])
                     )
             except Exception as e:
                 logger.error(f"Cloud loop error: {e}")

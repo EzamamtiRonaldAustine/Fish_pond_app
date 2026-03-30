@@ -14,7 +14,7 @@ class CloudClient:
         self.session = requests.Session()
         self.headers = {"X-Device-Key": CFG.DEVICE_API_KEY}
 
-    def post_data(self, data: dict, status: str, score: int):
+    def post_data(self, data: dict, status: str, score: int, is_turbid: bool, alerts: list):
         try:
             payload = {
                 "device_id": CFG.DEVICE_DB_ID,
@@ -23,8 +23,10 @@ class CloudClient:
                 "ec": data.get("ec"),
                 "nitrogen": data.get("nitrogen"),
                 "phosphorus": data.get("phosphorus"),
+                "turbidity": (1 if is_turbid else 0) if is_turbid is not None else None,
                 "quality_status": status,
-                "quality_score": score
+                "quality_score": score,
+                "alerts": alerts
             }
             url = f"{CFG.API_BASE_URL}/sensors/readings"
             r = self.session.post(url, json=payload, headers=self.headers, timeout=10)
