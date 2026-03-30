@@ -324,7 +324,14 @@
 
                 clearError();
 
-                const timestamp = data.timestamp ? new Date(data.timestamp).toLocaleString() : '--';
+                let timestamp = '--';
+                if (data.timestamp) {
+                    let tsString = data.timestamp;
+                    if (!tsString.endsWith('Z') && !tsString.includes('+')) {
+                        tsString += 'Z'; // Force UTC to local time conversion
+                    }
+                    timestamp = new Date(tsString).toLocaleString();
+                }
                 document.getElementById('last-update').textContent = timestamp;
 
                 const status = data.status || 'UNKNOWN';
@@ -416,7 +423,10 @@
             document.getElementById('data-count').textContent = tempPoints.length;
 
             const labels = tempPoints.map(function (p) {
-                const date = new Date(p.timestamp);
+                let ts = p.timestamp;
+                if (ts && !ts.endsWith('Z') && !ts.includes('+')) ts += 'Z';
+                const date = new Date(ts);
+                
                 if (currentTimeRange === '6h' || currentTimeRange === '24h') {
                     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 } else {

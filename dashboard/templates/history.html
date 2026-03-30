@@ -550,7 +550,12 @@
 
             const allTimestamps = new Set();
             Object.values(currentData).forEach(paramData => {
-                paramData.data.forEach(point => allTimestamps.add(point.timestamp));
+                paramData.data.forEach(point => {
+                    if (point.timestamp && !point.timestamp.endsWith('Z') && !point.timestamp.includes('+')) {
+                        point.timestamp += 'Z';
+                    }
+                    allTimestamps.add(point.timestamp);
+                });
             });
             sortedTimestamps = Array.from(allTimestamps).sort();
 
