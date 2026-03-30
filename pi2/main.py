@@ -186,21 +186,27 @@ class AquaGuardianAgent:
         if not self._running: return
         logger.info("Stopping hardware agent...")
         self._running = False
-        
-        # Stop active peripherals safely
+
+        # 1. Stop pump safely (force relay HIGH)
         try: self.pump.stop()
         except: pass
-        try: self.indicators._reset_indicators()
+
+        # 2. Show offline message on LCD
+        try: self.lcd.cleanup()
         except: pass
 
-        # Final GPIO cleanup
+        # 3. Stop PWM buzzer BEFORE GPIO.cleanup() — this is what prevents the segfault
+        try: self.indicators.cleanup()
+        except: pass
+
+        # 4. Now safe to release all GPIO pins
         try:
             import RPi.GPIO as GPIO
             GPIO.cleanup()
             logger.info("GPIO and LCD cleaned up")
         except:
             pass
-            
+
         logger.info("Hardware agent stopped.")
 
 if __name__ == "__main__":

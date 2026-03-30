@@ -37,3 +37,19 @@ class LCDController:
             self.lcd.write_string(line2[:16])
         except Exception:
             pass
+
+    def cleanup(self):
+        """Show shutdown message and blank the LCD."""
+        if not self.lcd: return
+        try:
+            self.lcd.clear()
+            self.lcd.cursor_pos = (0, 0)
+            self.lcd.write_string("  System Offline")
+            self.lcd.cursor_pos = (1, 0)
+            self.lcd.write_string("  Shutting down ")
+            time.sleep(1.5)
+            self.lcd.clear()
+            self.lcd.backlight_enabled = False
+        except Exception:
+            pass
+

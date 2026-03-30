@@ -69,3 +69,16 @@ class IndicatorController:
                 time.sleep(0.5)
             self._buzzer_active = False
         threading.Thread(target=_do, daemon=True).start()
+
+    def cleanup(self):
+        """Stop PWM and reset all indicators safely. Must be called before GPIO.cleanup()."""
+        if not GPIO: return
+        try:
+            self._alert_silenced = True
+            if hasattr(self, '_buzzer') and self._buzzer:
+                self._buzzer.ChangeDutyCycle(0)
+                self._buzzer.stop()   # ← Critical: stop PWM before GPIO.cleanup()
+        except Exception:
+            pass
+        self._reset_indicators()
+
