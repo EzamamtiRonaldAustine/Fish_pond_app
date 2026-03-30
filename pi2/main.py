@@ -117,7 +117,12 @@ class AquaGuardianAgent:
                 if assessment["overall"] == "CRITICAL":
                     if not self._critical_start: self._critical_start = time.time()
                     elif time.time() - self._critical_start >= CFG.CRITICAL_DURATION:
-                        self.gsm.send_sms(f"🚨 CRITICAL sustained alert! Score: {assessment['score']}")
+                        alerts_text = " | ".join(assessment.get("alerts", []))
+                        sms_msg = f"🚨 CRITICAL Alert! Score: {assessment['score']}\n"
+                        if alerts_text:
+                            sms_msg += f"Issues: {alerts_text}\n"
+                        sms_msg += "Pump is actively running to improve water quality."
+                        self.gsm.send_sms(sms_msg)
                 else:
                     self._critical_start = None
 
