@@ -175,22 +175,43 @@ class AquaGuardianAgent:
             logger.info(f"Thread started: {name}")
 
         try:
-            while self._running: time.sleep(1)
+            while self._running:
+                time.sleep(1)
         except KeyboardInterrupt:
+            logger.info("KeyboardInterrupt received — shutting down")
+        finally:
             self.stop()
 
-        self.indicators._reset_indicators()
+    def stop(self):
+        if not self._running: return
+        logger.info("Stopping hardware agent...")
+        self._running = False
         
-        # Final GPIO cleanup to prevent segmentation faults
+        # Stop active peripherals safely
+        try: self.pump.stop()
+        except: pass
+        try: self.indicators._reset_indicators()
+        except: pass
+
+        # Final GPIO cleanup
         try:
             import RPi.GPIO as GPIO
             GPIO.cleanup()
-            logger.info("✅ GPIO cleaned up")
+            logger.info("GPIO and LCD cleaned up")
         except:
             pass
             
-        logger.info("Agent stopped.")
+        logger.info("Hardware agent stopped.")
 
 if __name__ == "__main__":
     agent = AquaGuardianAgent()
+
+    def _handle_signal(signum, frame):
+        logger.info(f"Signal {signum} received — initiating shutdown")
+        agent.stop()
+        sys.exit(0)
+
+    signal.signal(signal.SIGTERM, _handle_signal)
+    signal.signal(signal.SIGINT,  _handle_signal)
+
     agent.run()
