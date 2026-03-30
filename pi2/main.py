@@ -47,6 +47,16 @@ class AquaGuardianAgent:
     def __init__(self):
         self._running = True
         
+        # Initialize GPIO Mode (Must be done before any sensors/actuators call GPIO.setup)
+        try:
+            import RPi.GPIO as GPIO
+            GPIO.setwarnings(False)
+            GPIO.setmode(GPIO.BCM)
+            logger.info("✅ GPIO mode set to BCM")
+        except ImportError:
+            GPIO = None
+            logger.warning("⚠️ RPi.GPIO not found, running in simulation mode")
+
         # Initialize Components
         self.rs485      = RS485Sensor()
         self.temp_ext   = DS18B20Sensor()
@@ -58,10 +68,17 @@ class AquaGuardianAgent:
         self.gsm        = GSMNotifier()
         self.cloud      = CloudClient()
 
+        self._print_header()
+
         # State tracking
         self.latest_data = {}
         self.latest_assessment = {"overall": "GOOD", "score": 0}
-        self._critical_start = None
+    def _print_header(self):
+        print("\n" + "="*60)
+        print("AQUAGUARDIAN v2.0 — Modular Hardware Agent")
+        print(f"API Target : {CFG.API_BASE_URL}")
+        print(f"Device ID  : {CFG.DEVICE_DB_ID}")
+        print("="*60 + "\n")
 
     def _monitor_loop(self):
         """Primary sensor acquisition and local logic loop."""
@@ -77,6 +94,10 @@ class AquaGuardianAgent:
                 assessment = self.analyzer.assess(data, is_turbid)
                 self.latest_data = data
                 self.latest_assessment = assessment
+
+                # Compact Log (Matches old style)
+                logger.info(f"[Monitor] status={assessment['overall']} score={assessment['score']} "
+                            f"temp={data.get('temperature', 'None')} pH={data.get('ph', 'None')}")
 
                 # 3. Local Hardware Actions
                 self.indicators.set_status(assessment["overall"])
@@ -102,7 +123,11 @@ class AquaGuardianAgent:
 
             except Exception as e:
                 logger.error(f"Monitor loop error: {e}")
-            time.sleep(CFG.SENSOR_READ_INTERVAL)
+            
+            # Use short sleeps to allow quick, clean exit
+            for _ in range(int(CFG.SENSOR_READ_INTERVAL)):
+                if not self._running: return
+                time.sleep(1)
 
     def _cloud_loop(self):
         """Communication loop for the Railway API."""
@@ -116,7 +141,11 @@ class AquaGuardianAgent:
                     )
             except Exception as e:
                 logger.error(f"Cloud loop error: {e}")
-            time.sleep(CFG.API_SEND_INTERVAL)
+
+            # Use short sleeps to allow quick, clean exit
+            for _ in range(int(CFG.API_SEND_INTERVAL)):
+                if not self._running: return
+                time.sleep(1)
 
     def _command_loop(self):
         """Poll for remote commands from the web UI."""
@@ -133,24 +162,33 @@ class AquaGuardianAgent:
             time.sleep(CFG.COMMAND_POLL_INTERVAL)
 
     def run(self):
-        logger.info("Modular Hardware Agent starting...")
+        logger.info("Starting background threads...")
         threads = [
-            threading.Thread(target=self._monitor_loop, daemon=True),
-            threading.Thread(target=self._cloud_loop,   daemon=True),
-            threading.Thread(target=self._command_loop, daemon=True),
+            ("Monitor", self._monitor_loop),
+            ("Cloud",   self._cloud_loop),
+            ("Commands", self._command_loop),
         ]
-        for t in threads: t.start()
+        
+        for name, target in threads:
+            t = threading.Thread(target=target, daemon=True)
+            t.start()
+            logger.info(f"Thread started: {name}")
 
         try:
             while self._running: time.sleep(1)
         except KeyboardInterrupt:
             self.stop()
 
-    def stop(self):
-        logger.info("Shutting down...")
-        self._running = False
-        self.pump.stop()
         self.indicators._reset_indicators()
+        
+        # Final GPIO cleanup to prevent segmentation faults
+        try:
+            import RPi.GPIO as GPIO
+            GPIO.cleanup()
+            logger.info("✅ GPIO cleaned up")
+        except:
+            pass
+            
         logger.info("Agent stopped.")
 
 if __name__ == "__main__":

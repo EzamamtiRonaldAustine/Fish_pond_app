@@ -28,6 +28,7 @@ class IndicatorController:
             GPIO.setup(CFG.GPIO_PINS[led], GPIO.OUT)
         self._buzzer = GPIO.PWM(CFG.GPIO_PINS["BUZZER"], 1000)
         self._buzzer.start(0)
+        logger.info("✅ Status Indicators initialized (LEDs + Buzzer)")
 
     def set_status(self, status: str):
         """Drives LEDs based on status."""

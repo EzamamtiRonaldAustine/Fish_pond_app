@@ -19,7 +19,9 @@ class DS18B20Sensor:
             os.system("modprobe w1-therm")
             files = glob.glob("/sys/bus/w1/devices/28-*")
             if files:
-                return files[0] + "/w1_slave"
+                dev = files[0] + "/w1_slave"
+                logger.info(f"✅ DS18B20 initialized: {dev}")
+                return dev
         except Exception as e:
             logger.error(f"Failed to find DS18B20: {e}")
         return None

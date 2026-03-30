@@ -22,6 +22,7 @@ class PumpController:
         self._pin = CFG.GPIO_PINS["PUMP"]
         if GPIO:
             GPIO.setup(self._pin, GPIO.OUT, initial=GPIO.HIGH) # High = Relay Off
+            logger.info("✅ Pump GPIO initialized — Pump held OFF")
 
     def start(self, mode="NORMAL"):
         if self._running: return

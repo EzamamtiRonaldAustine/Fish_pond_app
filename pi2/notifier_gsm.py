@@ -22,6 +22,7 @@ class GSMNotifier:
             ser.write(b"AT\r\n")
             time.sleep(0.5)
             ser.write(b"AT+CMGF=1\r\n") # Text mode
+            logger.info("✅ GSM module initialized")
             return ser
         except Exception as e:
             logger.error(f"GSM init failed: {e}")

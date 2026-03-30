@@ -21,6 +21,7 @@ class LCDController:
             lcd = CharLCD("PCF8574", 0x27)
             lcd.clear()
             lcd.write_string("AquaGuardian v2")
+            logger.info("✅ LCD initialized")
             return lcd
         except Exception as e:
             logger.error(f"LCD init failed: {e}")

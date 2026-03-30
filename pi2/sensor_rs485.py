@@ -31,6 +31,7 @@ class RS485Sensor:
             inst = minimalmodbus.Instrument(CFG.RS485_PORT, CFG.RS485_SLAVE_ID)
             inst.serial.baudrate = 9600
             inst.serial.timeout  = 1
+            logger.info("✅ RS485 sensor initialized")
             return inst
         except Exception as exc:
             logger.error(f"RS485 initialization failed: {exc}")
