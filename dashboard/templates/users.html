@@ -12,6 +12,13 @@
 </div>
 {% else %}
 
+{% else %}
+
+<!-- User Metrics -->
+<div class="row g-4 mb-4" id="user-metrics">
+    <!-- Populated by JS -->
+</div>
+
 <!-- Create New User Card -->
 <div class="sensor-card mb-4">
     <h4><i class="bi bi-person-plus"></i> Create New User</h4>
@@ -58,7 +65,13 @@
 
 <!-- Existing Users List -->
 <div class="sensor-card">
-    <h4><i class="bi bi-people-fill"></i> All Users</h4>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0"><i class="bi bi-people-fill"></i> All Users</h4>
+        <div class="input-group" style="max-width: 300px;">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" id="user-search" class="form-control" placeholder="Search (name, org, email)...">
+        </div>
+    </div>
     <div class="table-responsive" id="users-table">
         <p class="text-muted">Loading users...</p>
     </div>
@@ -243,71 +256,157 @@
     }
 
     // Load and display users
+    let allLoadedUsers = [];
+    
     function loadUsers() {
         fetch('/api-proxy/users')
             .then(r => r.json())
             .then(data => {
-                const container = document.getElementById('users-table');
-                const users = data.users || [];
-
-                if (users.length === 0) {
-                    container.innerHTML = '<p class="text-muted">No users found</p>';
-                    return;
-                }
-
-                container.innerHTML = `
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Username</th>
-                            <th>Full Name</th>
-                            <th>Email</th>
-                            <th>Role</th>
-                            <th>Organization</th>
-                            <th>Devices</th>
-                            <th>Last Login</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${users.map(u => `
-                            <tr>
-                                <td><strong>${u.username}</strong></td>
-                                <td>${u.full_name || '--'}</td>
-                                <td>${u.email || '--'}</td>
-                                <td><span class="badge bg-${u.role === 'admin' ? 'danger' : 'primary'}">${u.role}</span></td>
-                                <td>${u.organization_name || '--'}</td>
-                                <td>${u.device_count || 0}</td>
-                                <td>${u.last_login ? new Date(u.last_login).toLocaleDateString() : 'Never'}</td>
-                                <td><span class="badge bg-${u.is_active ? 'success' : 'secondary'}">${u.is_active ? 'Active' : 'Inactive'}</span></td>
-                                <td>
-                                    <div class="btn-group">
-                                        ${(u.device_count && u.device_count > 0) ? `
-                                        <button class="btn btn-sm btn-outline-warning" onclick="openUnassignModal(${u.id}, '${u.username}')" title="Unassign Device">
-                                            <i class="bi bi-x-circle"></i> Unassign
-                                        </button>
-                                        ` : `
-                                        <button class="btn btn-sm btn-outline-primary" onclick="openAssignModal(${u.id}, '${u.username}')" title="Assign Device">
-                                            <i class="bi bi-link"></i> Assign
-                                        </button>
-                                        `}
-                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteUser(${u.id}, '${u.username}')" title="Delete User">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            `;
+                allLoadedUsers = data.users || [];
+                updateUserMetrics();
+                applyFilters();
             })
             .catch(err => {
                 console.error('Error loading users:', err);
                 document.getElementById('users-table').innerHTML =
                     '<p class="text-danger">Failed to load users</p>';
             });
+    }
+
+    function updateUserMetrics() {
+        const farmers = allLoadedUsers.filter(u => u.role === 'farmer').length;
+        const admins = allLoadedUsers.filter(u => u.role === 'admin').length;
+        const orgs = new Set(allLoadedUsers.filter(u => u.organization_name).map(u => u.organization_name)).size;
+
+        document.getElementById('user-metrics').innerHTML = `
+            <div class="col-md-4">
+                <div class="sensor-card text-center h-100 p-3">
+                    <i class="bi bi-person-badge display-4 text-primary mb-2"></i>
+                    <h3 class="sensor-value">${farmers}</h3>
+                    <div class="sensor-label">Total Farmers</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="sensor-card text-center h-100 p-3">
+                    <i class="bi bi-shield-lock display-4 text-danger mb-2"></i>
+                    <h3 class="sensor-value">${admins}</h3>
+                    <div class="sensor-label">Administrators</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="sensor-card text-center h-100 p-3">
+                    <i class="bi bi-building display-4 text-success mb-2"></i>
+                    <h3 class="sensor-value">${orgs}</h3>
+                    <div class="sensor-label">Organizations Covered</div>
+                </div>
+            </div>
+        `;
+    }
+
+    // Sort State
+    let sortColumn = 'username';
+    let sortAscending = true;
+
+    window.sortTable = function(column) {
+        if (sortColumn === column) {
+            sortAscending = !sortAscending;
+        } else {
+            sortColumn = column;
+            sortAscending = true;
+        }
+        applyFilters();
+    };
+
+    function applyFilters() {
+        const searchTerm = (document.getElementById('user-search')?.value || '').toLowerCase();
+        
+        let filtered = allLoadedUsers.filter(u => {
+            return (u.username && u.username.toLowerCase().includes(searchTerm)) ||
+                   (u.full_name && u.full_name.toLowerCase().includes(searchTerm)) ||
+                   (u.email && u.email.toLowerCase().includes(searchTerm)) ||
+                   (u.organization_name && u.organization_name.toLowerCase().includes(searchTerm));
+        });
+
+        // Apply Sorting
+        filtered.sort((a, b) => {
+            let valA = a[sortColumn];
+            let valB = b[sortColumn];
+
+            if (valA === null || valA === undefined) valA = '';
+            if (valB === null || valB === undefined) valB = '';
+
+            if (typeof valA === 'string') valA = valA.toLowerCase();
+            if (typeof valB === 'string') valB = valB.toLowerCase();
+
+            if (valA < valB) return sortAscending ? -1 : 1;
+            if (valA > valB) return sortAscending ? 1 : -1;
+            return 0;
+        });
+
+        renderUsersTable(filtered);
+    }
+    
+    document.getElementById('user-search')?.addEventListener('input', applyFilters);
+
+    function renderUsersTable(users) {
+        const container = document.getElementById('users-table');
+        if (users.length === 0) {
+            container.innerHTML = '<p class="text-muted">No users found matching your search.</p>';
+            return;
+        }
+
+        const getSortIcon = (col) => {
+            if (sortColumn !== col) return '<i class="bi bi-arrow-down-up text-muted ms-1" style="font-size: 0.8rem;"></i>';
+            return sortAscending ? '<i class="bi bi-arrow-up text-primary ms-1"></i>' : '<i class="bi bi-arrow-down text-primary ms-1"></i>';
+        };
+
+        container.innerHTML = `
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th style="cursor: pointer; user-select: none;" onclick="sortTable('username')">Username ${getSortIcon('username')}</th>
+                    <th style="cursor: pointer; user-select: none;" onclick="sortTable('full_name')">Full Name ${getSortIcon('full_name')}</th>
+                    <th style="cursor: pointer; user-select: none;" onclick="sortTable('email')">Email ${getSortIcon('email')}</th>
+                    <th style="cursor: pointer; user-select: none;" onclick="sortTable('role')">Role ${getSortIcon('role')}</th>
+                    <th style="cursor: pointer; user-select: none;" onclick="sortTable('organization_name')">Organization ${getSortIcon('organization_name')}</th>
+                    <th style="cursor: pointer; user-select: none;" onclick="sortTable('device_count')">Devices ${getSortIcon('device_count')}</th>
+                    <th>Last Login</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${users.map(u => `
+                    <tr>
+                        <td><strong>${u.username}</strong></td>
+                        <td>${u.full_name || '--'}</td>
+                        <td>${u.email || '--'}</td>
+                        <td><span class="badge bg-${u.role === 'admin' ? 'danger' : 'primary'}">${u.role}</span></td>
+                        <td>${u.organization_name || '--'}</td>
+                        <td>${u.device_count || 0}</td>
+                        <td>${u.last_login ? new Date(u.last_login).toLocaleDateString() : 'Never'}</td>
+                        <td><span class="badge bg-${u.is_active ? 'success' : 'secondary'}">${u.is_active ? 'Active' : 'Inactive'}</span></td>
+                        <td>
+                            <div class="btn-group">
+                                ${(u.device_count && u.device_count > 0) ? `
+                                <button class="btn btn-sm btn-outline-warning" onclick="openUnassignModal(${u.id}, '${u.username}')" title="Unassign Device">
+                                    <i class="bi bi-x-circle"></i> Unassign
+                                </button>
+                                ` : `
+                                <button class="btn btn-sm btn-outline-primary" onclick="openAssignModal(${u.id}, '${u.username}')" title="Assign Device">
+                                    <i class="bi bi-link"></i> Assign
+                                </button>
+                                `}
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteUser(${u.id}, '${u.username}')" title="Delete User">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+        `;
     }
 
     // Load deleted users

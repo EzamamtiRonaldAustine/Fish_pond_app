@@ -1,6 +1,6 @@
 import requests
 import json
-from config import API_URL, DEVICE_ID
+from config_1 import API_URL, DEVICE_ID
 
 def send_data(data):
     try:

@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}User Profile - AquaGuardian{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Profile Info Column -->
+    <div class="col-md-5">
+        <div class="sensor-card mb-4 text-center">
+            <h2 class="mb-3"><i class="bi bi-person-circle display-4 text-primary"></i></h2>
+            <h4 id="display-name">{{ session.get('user', {}).get('full_name', session.get('user', {}).get('username')) }}</h4>
+            <p class="text-muted mb-1">{{ session.get('user', {}).get('organization_name', 'No Organization') }}</p>
+            <span class="badge bg-{{ 'danger' if session.get('user', {}).get('role') == 'admin' else 'primary' }} mb-3">
+                {{ session.get('user', {}).get('role', 'Farmer')|title }}
+            </span>
+            
+            <div class="text-start mt-4 pt-3 border-top">
+                <p><strong><i class="bi bi-envelope"></i> Primary Email:</strong> <br>
+                   <span class="text-muted">{{ session.get('user', {}).get('email') }}</span>
+                   <small class="d-block text-warning mt-1"><i class="bi bi-info-circle"></i> Used for login and recovery</small>
+                </p>
+            </div>
+        </div>
+
+        <div class="sensor-card">
+            <h4><i class="bi bi-hdd-network"></i> My Assigned Devices</h4>
+            <div id="user-devices-list" class="mt-3">
+                <p class="text-muted"><i class="spinner-border spinner-border-sm"></i> Loading devices...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Profile Column -->
+    <div class="col-md-7">
+        <div class="sensor-card">
+            <h4><i class="bi bi-pencil-square"></i> Edit Profile Details</h4>
+            <hr>
+            <form id="update-profile-form">
+                <div class="mb-3">
+                    <label class="form-label">Username</label>
+                    <input type="text" class="form-control" name="username" id="input-username" value="{{ session.get('user', {}).get('username', '') }}" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" class="form-control" name="full_name" id="input-fullname" value="{{ session.get('user', {}).get('full_name', '') }}" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Phone Number</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-telephone"></i></span>
+                        <input type="tel" class="form-control" name="phone" id="input-phone" placeholder="07XXXXXXXX" pattern="[0-9]{10}" value="{{ session.get('user', {}).get('phone', '') }}">
+                    </div>
+                    <small class="text-muted">Must be 10 digits</small>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Alternate Email <span class="badge bg-secondary ms-1">New</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-envelope-plus"></i></span>
+                        <input type="email" class="form-control" name="alternate_email" id="input-alt-email" placeholder="Secondary email address" value="{{ session.get('user', {}).get('alternate_email', '') }}">
+                    </div>
+                    <small class="text-muted">For additional notifications or communication</small>
+                </div>
+
+                <div id="profile-message" class="mt-3"></div>
+                
+                <div class="text-end mt-4">
+                    <button type="submit" class="btn btn-primary px-4"><i class="bi bi-save"></i> Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Fetch and populate user profile data first to ensure we have the latest (including alternate_email and phone which might not be in session right now)
+    document.addEventListener('DOMContentLoaded', async () => {
+        try {
+            const resp = await fetch('/api-proxy/auth/me');
+            if (resp.ok) {
+                const data = await resp.json();
+                const u = data.user;
+                if (u) {
+                    if (u.phone) document.getElementById('input-phone').value = u.phone;
+                    if (u.alternate_email) document.getElementById('input-alt-email').value = u.alternate_email;
+                    if (u.username) document.getElementById('input-username').value = u.username;
+                    if (u.full_name) document.getElementById('input-fullname').value = u.full_name;
+                    document.getElementById('display-name').innerText = u.full_name || u.username;
+                }
+            }
+        } catch(e) {
+            console.error("Error fetching me details:", e);
+        }
+
+        // Fetch user devices
+        try {
+            // We use /api-proxy/devices endpoint, farmers only see their assigned devices per backend logic
+            const devResp = await fetch('/api-proxy/devices');
+            const devContainer = document.getElementById('user-devices-list');
+            
+            if (devResp.ok) {
+                const devData = await devResp.json();
+                const devices = devData.devices || [];
+                
+                if (devices.length === 0) {
+                    devContainer.innerHTML = '<div class="alert alert-info py-2"><i class="bi bi-info-circle"></i> No devices assigned to your account.</div>';
+                } else {
+                    devContainer.innerHTML = `
+                        <div class="list-group">
+                            ${devices.map(d => `
+                                <div class="list-group-item bg-light border-secondary">
+                                    <div class="d-flex w-100 justify-content-between align-items-center">
+                                        <h6 class="mb-1"><i class="bi bi-cpu text-primary"></i> ${d.name}</h6>
+                                        <span class="badge bg-${d.status === 'active' ? 'success' : 'secondary'}">${d.status}</span>
+                                    </div>
+                                    <p class="mb-1 text-muted small"><i class="bi bi-tag"></i> ID: ${d.device_id}</p>
+                                    ${d.permission_level ? `<small class="text-primary"><i class="bi bi-shield-lock"></i> Access: ${d.permission_level}</small>` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+            } else {
+                devContainer.innerHTML = '<p class="text-danger">Failed to load devices.</p>';
+            }
+        } catch(e) {
+            console.error("Error fetching devices:", e);
+            document.getElementById('user-devices-list').innerHTML = '<p class="text-danger">Failed to load devices.</p>';
+        }
+    });
+
+    // Handle Profile Update Submission
+    document.getElementById('update-profile-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const msgBox = document.getElementById('profile-message');
+        msgBox.innerHTML = '<div class="text-primary"><i class="spinner-border spinner-border-sm"></i> Saving...</div>';
+        
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
+        
+        try {
+            const response = await fetch('/api-proxy/auth/profile', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                msgBox.innerHTML = '<div class="alert alert-success py-2"><i class="bi bi-check-circle"></i> Profile updated successfully!</div>';
+                
+                // If the access token was renewed, we need to update our session token.
+                // The dashboard proxy handles transparent updates if we call a special endpoint, 
+                // but since /api-proxy passes cookies/headers, the simplest way is to fetch the renewed token
+                // and maybe reload to let the backend session store sync up, or simply notify the user.
+                
+                document.getElementById('display-name').innerText = result.user.full_name || result.user.username;
+                
+                setTimeout(() => {
+                    msgBox.innerHTML = '';
+                    // Optional: force reload to refresh session cookie via a dedicated route if needed,
+                    // but for now, JS view updates are enough.
+                }, 3000);
+            } else {
+                msgBox.innerHTML = `<div class="alert alert-danger py-2"><i class="bi bi-exclamation-triangle"></i> Error: ${result.error}</div>`;
+            }
+        } catch (error) {
+            msgBox.innerHTML = `<div class="alert alert-danger py-2"><i class="bi bi-exclamation-triangle"></i> Failed to update profile: ${error.message}</div>`;
+        }
+    });
+</script>
+{% endblock %}

@@ -328,11 +328,13 @@ def login():
                     'id': user['id'],
                     'username': user['username'],
                     'email': user['email'],
+                    'alternate_email': user.get('alternate_email'),
                     'full_name': user['full_name'],
+                    'phone': user.get('phone'),
                     'role': user['role'],
                     'organization_id': user['organization_id'],
                     'organization_name': user['organization_name'],
-                    'subscription_tier': user['subscription_tier']
+                    'subscription_tier': user.get('subscription_tier')
                 }
             }), 200
         else:
@@ -371,6 +373,84 @@ def get_current_user():
             user['subscription_tier'] = org['subscription_tier']
     
     return jsonify({'user': user}), 200
+
+@auth_bp.route('/profile', methods=['PUT'])
+@jwt_required()
+def update_profile():
+    """Update current user profile info."""
+    try:
+        user = get_user_from_token()
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+            
+        data = request.get_json()
+        new_username = data.get('username')
+        new_full_name = data.get('full_name')
+        new_phone = data.get('phone')
+        new_alternate_email = data.get('alternate_email')
+        
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'Database unavailable'}), 503
+            
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        if new_username and new_username != user['username']:
+            cur.execute("SELECT id FROM users WHERE username = %s AND id != %s", (new_username, user['id']))
+            if cur.fetchone():
+                cur.close()
+                conn.close()
+                return jsonify({'error': 'Username is already taken'}), 400
+                
+        if new_phone and (not new_phone.isdigit() or len(new_phone) != 10):
+            cur.close()
+            conn.close()
+            return jsonify({'error': 'Phone number must be exactly 10 digits'}), 400
+            
+        update_query = """
+            UPDATE users 
+            SET username = COALESCE(%s, username),
+                full_name = COALESCE(%s, full_name),
+                phone = COALESCE(%s, phone),
+                alternate_email = COALESCE(%s, alternate_email),
+                updated_at = NOW()
+            WHERE id = %s
+            RETURNING *
+        """
+        cur.execute(update_query, (new_username, new_full_name, new_phone, new_alternate_email, user['id']))
+        updated_user = cur.fetchone()
+        conn.commit()
+        
+        access_token = create_access_token(
+            identity=updated_user['username'],
+            additional_claims={
+                'role': updated_user['role'],
+                'organization_id': updated_user['organization_id']
+            }
+        )
+        
+        cur.close()
+        conn.close()
+        
+        return jsonify({
+            'message': 'Profile updated successfully',
+            'access_token': access_token,
+            'user': {
+                'id': updated_user['id'],
+                'username': updated_user['username'],
+                'email': updated_user['email'],
+                'alternate_email': updated_user['alternate_email'],
+                'full_name': updated_user['full_name'],
+                'phone': updated_user['phone'],
+                'role': updated_user['role'],
+                'organization_id': updated_user['organization_id']
+            }
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error updating profile: {e}")
+        return jsonify({'error': 'Failed to update profile'}), 500
+
 
 @auth_bp.route('/device-status', methods=['GET'])
 @jwt_required()

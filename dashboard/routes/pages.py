@@ -108,3 +108,10 @@ def logout():
 @pages_bp.route("/forgot-password")
 def forgot_password():
     return render_template("forgot_password.html")
+
+@pages_bp.route("/profile")
+def profile_page():
+    if not session.get('token'):
+        return redirect(url_for('pages.login_page'))
+    return render_template("profile.html")
+
