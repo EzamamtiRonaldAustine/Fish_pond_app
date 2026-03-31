@@ -73,6 +73,7 @@ class AquaGuardianAgent:
         # State tracking
         self.latest_data = {}
         self.latest_assessment = {"overall": "GOOD", "score": 0}
+        self._critical_start = None
     def _print_header(self):
         print("\n" + "="*60)
         print("AQUAGUARDIAN v2.0 — Modular Hardware Agent")

@@ -157,9 +157,9 @@
         box-shadow: 0 0 12px 4px currentColor;
     }
 
-    .led-dot.led-blue {
-        background: #3b82f6;
-        color: #3b82f6;
+    .led-dot.led-green {
+        background: #10b981;
+        color: #10b981;
     }
 
     .led-dot.led-yellow {
@@ -573,7 +573,7 @@
             <p class="mb-2" style="font-size:.78rem;color:#64748b;font-weight:600;">STATUS LEDs</p>
             <div class="led-row mb-4">
                 <div class="led-item">
-                    <div id="led-blue" class="led-dot led-blue"></div>
+                    <div id="led-green" class="led-dot led-green"></div>
                     <div class="led-label">GOOD</div>
                 </div>
                 <div class="led-item">
@@ -862,11 +862,11 @@
             const s = await r.json();
 
             // LEDs
-            const leds = { blue: false, yellow: false, red: false };
-            if (s.led_status === 'GOOD') leds.blue = true;
+            const leds = { green: false, yellow: false, red: false };
+            if (s.led_status === 'GOOD') leds.green = true;
             if (s.led_status === 'WARNING') leds.yellow = true;
             if (s.led_status === 'CRITICAL') leds.red = true;
-            setLed('led-blue', leds.blue);
+            setLed('led-green', leds.green);
             setLed('led-yellow', leds.yellow);
             setLed('led-red', leds.red);
 

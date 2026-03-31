@@ -44,20 +44,24 @@ class RS485Sensor:
 
         data = {}
         try:
-            # Basic readings
-            temp = self._read_reg(self._REGISTERS["temperature"])
+            # Temperature — raw integer / 10 (e.g. 245 → 24.5°C)
+            temp = self._read_reg(self._REGISTERS["temperature"], decimals=1)
             data["temperature"] = temp
-            
-            raw_ph = self._read_reg(self._REGISTERS["ph"])
-            if raw_ph and raw_ph > 0.5:
-                # Apply pH calibration and temp compensation
-                ph = raw_ph / 3.13
-                data["ph"] = round(ph - ( (temp or 25.0) - 25) * 0.01, 2)
+
+            # pH — raw integer / 10 (e.g. 35 → 3.5, 70 → 7.0)
+            # This sensor outputs value * 10 (not * 100)
+            raw_ph = self._read_reg(self._REGISTERS["ph"], decimals=0)
+            if raw_ph and raw_ph > 5:   # sanity check: raw > 5 means pH > 0.5
+                data["ph"] = round(raw_ph / 10.0, 2)
             else:
                 data["ph"] = None
 
-            for p in ("ec", "nitrogen", "phosphorus", "potassium"):
-                data[p] = self._read_reg(self._REGISTERS[p])
+            # EC — raw integer / 10 (µS/cm)
+            data["ec"] = self._read_reg(self._REGISTERS["ec"], decimals=1)
+
+            # NPK — raw integer / 10 (mg/kg) — matches original sensor behaviour
+            for p in ("nitrogen", "phosphorus", "potassium"):
+                data[p] = self._read_reg(self._REGISTERS[p], decimals=1)
 
             self._error_count = 0
             return data
@@ -69,8 +73,9 @@ class RS485Sensor:
                 self._error_count = 0
             return {}
 
-    def _read_reg(self, reg: int) -> float | None:
+    def _read_reg(self, reg: int, decimals: int = 1) -> float | None:
+        """Read a single Modbus register. decimals controls fixed-point scaling."""
         try:
-            return self.instrument.read_register(reg, 1, functioncode=3)
+            return self.instrument.read_register(reg, decimals, functioncode=3)
         except Exception:
             return None
