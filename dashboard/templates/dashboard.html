@@ -353,7 +353,8 @@
                     aiStatusEl.innerHTML = '<span class="' + badgeClass + '">' + aiLabel + '</span>';
                 }
 
-                document.getElementById('quality-score').textContent = data.score || '--';
+                document.getElementById('quality-score').textContent =
+                    (data.score !== null && data.score !== undefined) ? data.score : '--';
 
                 document.getElementById('temp-value').textContent = safeNumber(data.temperature, 1, '°C');
                 document.getElementById('ph-value').textContent = safeNumber(data.ph, 2);

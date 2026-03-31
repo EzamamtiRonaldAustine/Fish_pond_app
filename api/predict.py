@@ -194,12 +194,12 @@ def engineer_features(
         # ── Log transforms (2) ───────────────────────────────────────────
         # log1p safe for zero values
         "nitrite_log":                np.log1p(scaled_nitrite),
-        "phosphorus_log":             np.log1p(phosphorus),
+        "phosphorus_log":             np.log1p(surrogate_p),
         # ── Interaction terms (3) ────────────────────────────────────────
         # pH × Nitrite: un-ionised nitrite toxicity rises at high pH
         "ph_nitrite_interaction":     ph * scaled_nitrite,
         # Phosphorus × Nitrite: dual nutrient water quality stress index
-        "phosphorus_nitrite_product": phosphorus * scaled_nitrite,
+        "phosphorus_nitrite_product": surrogate_p * scaled_nitrite,
         # Temp × pH: compound thermal + chemical stress
         "temp_ph_interaction":        temperature * ph,
         # ── Polynomial (1) ───────────────────────────────────────────────
