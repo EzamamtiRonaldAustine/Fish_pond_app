@@ -1,47 +1,112 @@
 """
-pi2/notifier_gsm.py — GSM/SMS Emergency Notifier
-===============================================
+pi2/notifier_gsm.py — GSM/SMS Notifier (SIM800C)
 """
 import logging
 import threading
 import time
-import serial
-from datetime import datetime
+
+try:
+    import serial
+except ImportError:
+    serial = None
+
 from . import config as CFG
 
 logger = logging.getLogger("GSMNotifier")
 
+
 class GSMNotifier:
     def __init__(self):
-        self._ser = self._init_gsm()
-        self._last_sent = 0
+        self._ser       = None
+        self._lock      = threading.Lock()
+        self._last_sent = 0.0
 
-    def _init_gsm(self):
+        if serial is None:
+            logger.warning("pyserial not installed — GSM unavailable")
+            return
+
         try:
-            ser = serial.Serial(CFG.GSM_PORT, CFG.GSM_BAUDRATE, timeout=5)
-            ser.write(b"AT\r\n")
-            time.sleep(0.5)
-            ser.write(b"AT+CMGF=1\r\n") # Text mode
-            logger.info("✅ GSM module initialized")
-            return ser
-        except Exception as e:
-            logger.error(f"GSM init failed: {e}")
-            return None
+            self._ser = serial.Serial(CFG.GSM_PORT, CFG.GSM_BAUDRATE, timeout=2)
+            time.sleep(2)                          # Let SIM800C stabilise
 
-    def send_sms(self, text: str):
-        if not self._ser: return
-        now = time.time()
-        if now - self._last_sent < CFG.SMS_COOLDOWN: return
-        
-        for num in CFG.SMS_PHONE_NUMBERS:
-            try:
-                self._ser.write(f'AT+CMGS="{num.strip()}"\r\n'.encode())
-                time.sleep(1)
-                self._ser.write(text.encode())
-                self._ser.write(b"\x1A") # Ctrl+Z
+            self._cmd("AT")                        # Check communication
+            self._cmd("ATE0")                      # Disable echo
+
+            # Wait for SIM card
+            for _ in range(3):
+                if "READY" in self._cmd("AT+CPIN?", delay=2):
+                    break
+                time.sleep(2)
+
+            # Wait for network registration (up to 60 s)
+            start = time.time()
+            while time.time() - start < 60:
+                reply = self._cmd("AT+CREG?")
+                if "+CREG: 0,1" in reply or "+CREG: 0,5" in reply:
+                    break
                 time.sleep(3)
-                logger.info(f"SMS sent to {num}")
-            except Exception as e:
-                logger.error(f"SMS failed to {num}: {e}")
-        
-        self._last_sent = now
+
+            self._cmd("AT+CMGF=1")                 # SMS text mode
+            self._cmd('AT+CSCS="GSM"')             # GSM character set
+            logger.info("✅ GSM ready")
+
+        except Exception as exc:
+            logger.error(f"GSM init failed: {exc}")
+            self._ser = None
+
+    def send_sms(self, text: str) -> bool:
+        """Send SMS to all configured numbers. Respects cooldown."""
+        if not self._ser:
+            return False
+        now = time.time()
+        if now - self._last_sent < CFG.SMS_COOLDOWN:
+            return False
+
+        success = False
+        with self._lock:
+            for number in CFG.SMS_PHONE_NUMBERS:
+                number = number.strip()
+                if not number:
+                    continue
+                try:
+                    # Request send — wait for '>' prompt
+                    reply = self._cmd(f'AT+CMGS="{number}"', delay=2)
+                    if ">" not in reply:
+                        logger.error(f"No prompt for {number}")
+                        continue
+
+                    # Send message + Ctrl+Z
+                    self._ser.write(text.encode())
+                    time.sleep(0.5)
+                    self._ser.write(b"\x1A")
+
+                    # Wait for confirmation (up to 20 s)
+                    response = ""
+                    for _ in range(20):
+                        time.sleep(1)
+                        response += self._ser.read_all().decode(errors="ignore")
+                        if "+CMGS:" in response or "ERROR" in response:
+                            break
+
+                    if "+CMGS:" in response:
+                        logger.info(f"✅ SMS sent to {number}")
+                        success = True
+                    else:
+                        logger.error(f"❌ SMS failed to {number}")
+
+                except Exception as exc:
+                    logger.error(f"SMS error for {number}: {exc}")
+
+        if success:
+            self._last_sent = now
+        return success
+
+    def _cmd(self, command: str, delay: float = 1.0) -> str:
+        """Send an AT command and return the response."""
+        try:
+            self._ser.write((command + "\r\n").encode())
+            time.sleep(delay)
+            return self._ser.read_all().decode(errors="ignore")
+        except Exception as exc:
+            logger.error(f"AT error ({command}): {exc}")
+            return ""

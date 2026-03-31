@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="Electron" version="21.0.2">
+  <diagram id="d3" name="Hardware Architecture">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="Hardware Component Architecture" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontStyle=1;fontSize=18;" vertex="1" parent="1">
+          <mxGeometry x="320" y="20" width="500" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Raspberry Pi (center) -->
+        <mxCell id="rpi" value="Raspberry Pi&#xa;(Main Controller)" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="460" y="340" width="220" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- POWER group -->
+        <mxCell id="pwr-grp" value="Power Supply" style="swimlane;startSize=25;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="240" height="165" as="geometry" />
+        </mxCell>
+        <mxCell id="pwr12" value="12V DC Supply" style="rounded=1;fillColor=#f0a30a;strokeColor=#BD7000;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="pwr-grp">
+          <mxGeometry x="40" y="45" width="160" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="buck" value="5V Buck Converter" style="rounded=1;fillColor=#FFE6CC;strokeColor=#d79b00;" vertex="1" parent="pwr-grp">
+          <mxGeometry x="40" y="110" width="160" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ep1" edge="1" source="pwr12" target="buck" parent="pwr-grp"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ep2" value="5V" edge="1" source="buck" target="rpi" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- SENSORS group -->
+        <mxCell id="sens-grp" value="Sensors (Input)" style="swimlane;startSize=25;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="310" width="310" height="280" as="geometry" />
+        </mxCell>
+        <mxCell id="probe" value="7-in-1 RS485 Water Probe&#xa;pH, EC, Temp, N, P, Turbidity" style="rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;whiteSpace=wrap;" vertex="1" parent="sens-grp">
+          <mxGeometry x="30" y="45" width="250" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="conv" value="USB-RS485 Converter&#xa;(Modbus RTU Protocol)" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="sens-grp">
+          <mxGeometry x="55" y="135" width="200" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ds18" value="DS18B20 Temperature Sensor&#xa;(One-Wire Protocol)" style="rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="sens-grp">
+          <mxGeometry x="30" y="215" width="250" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="es1" edge="1" source="probe" target="conv" parent="sens-grp"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="es2" value="USB" edge="1" source="conv" target="rpi" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="es3" value="GPIO" edge="1" source="ds18" target="rpi" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ACTUATORS group -->
+        <mxCell id="act-grp" value="Actuators (Output)" style="swimlane;startSize=25;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="800" y="310" width="320" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="relay" value="Relay Module&#xa;(GPIO Triggered)" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="act-grp">
+          <mxGeometry x="20" y="55" width="140" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="water-pump" value="240V Water Pump&#xa;(Mains Power)" style="rounded=1;fillColor=#b85450;strokeColor=#6c0000;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="act-grp">
+          <mxGeometry x="175" y="55" width="125" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="leds" value="Status LEDs (GPIO)" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="act-grp">
+          <mxGeometry x="60" y="150" width="180" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ea1" edge="1" source="relay" target="water-pump" parent="act-grp"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ea2" value="GPIO" edge="1" source="rpi" target="relay" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ea3" edge="1" source="rpi" target="leds" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- COMMS group -->
+        <mxCell id="comm-grp" value="Communications" style="swimlane;startSize=25;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="80" width="740" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="sim800" value="SIM800C GSM Module&#xa;(UART / AT Commands)" style="rounded=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="comm-grp">
+          <mxGeometry x="30" y="60" width="185" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="gsm-net" value="GSM Network&#xa;(SMS Delivery)" style="ellipse;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="comm-grp">
+          <mxGeometry x="240" y="60" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="wifi" value="WiFi / Ethernet" style="rounded=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="comm-grp">
+          <mxGeometry x="415" y="60" width="130" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="cloud" value="Cloud API&#xa;(Railway)" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="comm-grp">
+          <mxGeometry x="575" y="60" width="130" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ec1" edge="1" source="sim800" target="gsm-net" parent="comm-grp"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ec2" edge="1" source="wifi" target="cloud" parent="comm-grp"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ec3" value="UART" edge="1" source="rpi" target="sim800" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ec4" value="HTTP / JSON" edge="1" source="rpi" target="wifi" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

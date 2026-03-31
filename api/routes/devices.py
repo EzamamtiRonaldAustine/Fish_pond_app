@@ -33,7 +33,7 @@ def get_devices():
                        o.name as organization_name,
                        u.username as owner_username,
                        u.full_name as owner_name,
-                       sr.temperature, sr.ph, sr.quality_status
+                       sr.temperature, sr.ph, sr.quality_status, sr.ai_quality_label
                 FROM devices d
                 LEFT JOIN organizations o ON d.organization_id = o.id
                 LEFT JOIN users u ON d.created_by = u.id
@@ -53,7 +53,7 @@ def get_devices():
                        o.name as organization_name,
                        u.username as owner_username,
                        u.full_name as owner_name,
-                       sr.temperature, sr.ph, sr.quality_status
+                       sr.temperature, sr.ph, sr.quality_status, sr.ai_quality_label
                 FROM v_user_device_access v
                 JOIN devices d ON v.device_id = d.id
                 LEFT JOIN organizations o ON d.organization_id = o.id

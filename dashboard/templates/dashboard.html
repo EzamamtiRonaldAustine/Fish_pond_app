@@ -114,7 +114,7 @@
                 <h2 id="overall-status">Loading...</h2>
             </div>
             <div class="col-md-3">
-                <h5>AI Assessment</h5>
+                <h5>ML Assessment</h5>
                 <h2 id="ai-status">--</h2>
             </div>
             <div class="col-md-3">
@@ -349,7 +349,7 @@
                     if (aiUpper === 'EXCELLENT' || aiUpper === 'GOOD') badgeClass += 'status-GOOD';
                     else if (aiUpper === 'POOR' || aiUpper === 'CRITICAL') badgeClass += 'status-CRITICAL';
                     else badgeClass += 'status-WARNING';
-                    
+
                     aiStatusEl.innerHTML = '<span class="' + badgeClass + '">' + aiLabel + '</span>';
                 }
 
@@ -426,7 +426,7 @@
                 let ts = p.timestamp;
                 if (ts && !ts.endsWith('Z') && !ts.includes('+')) ts += 'Z';
                 const date = new Date(ts);
-                
+
                 if (currentTimeRange === '6h' || currentTimeRange === '24h') {
                     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 } else {

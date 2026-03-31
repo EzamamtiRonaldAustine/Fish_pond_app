@@ -66,8 +66,8 @@ HISTORY_SIZE:      int  = int(os.getenv("HISTORY_SIZE",      "5"))
 # ── Water Quality Thresholds ────────────────────────────────────────────────
 THRESHOLDS = {
     "pH": {
-        "critical_low":  5.5, "warning_low":   6.0, "monitor_low":   6.5,
-        "monitor_high":  8.5, "warning_high":  9.0, "critical_high": 9.5,
+        "critical_low":  5.0, "warning_low":   6.0, "monitor_low":   6.5,
+        "monitor_high":  8.5, "warning_high":  9.0, "critical_high": 10.0,
     },
     "temperature": {
         "critical_low": 12.0, "warning_low": 18.0, "warning_high": 30.0, "critical_high": 35.0,
