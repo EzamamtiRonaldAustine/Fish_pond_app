@@ -314,7 +314,7 @@ def ack_command(device_id: int, command_id: int):
 # ─────────────────────────────────────────────────────────────────────────────
 
 @control_bp.route("/devices/<int:device_id>/status", methods=["GET"])
-@jwt_required(optional=True)
+@jwt_required()
 def get_device_status(device_id: int):
     """
     Return the live hardware status for the specified device.
@@ -338,6 +338,13 @@ def get_device_status(device_id: int):
         "pending_commands": 0
     }
     """
+    user = get_user_from_token()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+        
+    if user["role"] != "admin" and not check_device_access(user["id"], device_id):
+        return jsonify({"error": "Access denied"}), 403
+
     conn = get_db_connection()
     if not conn:
         return jsonify({"error": "Database unavailable"}), 503

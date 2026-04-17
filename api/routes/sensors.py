@@ -155,15 +155,16 @@ def ingest_sensor_reading():
 # Registration at /api -> routes start with /devices or /current-readings
 
 @sensors_bp.route('/devices/<int:device_id>/current-readings', methods=['GET'])
-@jwt_required(optional=True)
+@jwt_required()
 def get_device_current_readings(device_id):
     """Get latest readings for a specific device."""
     try:
-        current_user = get_jwt_identity()
-        if current_user:
-            user = get_user_from_token()
-            if user and user['role'] != 'admin' and not check_device_access(user['id'], device_id):
-                return jsonify({'error': 'Access denied'}), 403
+        user = get_user_from_token()
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        if user['role'] != 'admin' and not check_device_access(user['id'], device_id):
+            return jsonify({'error': 'Access denied'}), 403
         
         conn = get_db_connection()
         if not conn:
@@ -205,14 +206,13 @@ def get_device_current_readings(device_id):
 
 
 @sensors_bp.route('/current-readings', methods=['GET'])
-@jwt_required(optional=True)
+@jwt_required()
 def get_current_readings():
     """Get latest readings (legacy endpoint)."""
     try:
-        user = None
-        current_user = get_jwt_identity()
-        if current_user:
-            user = get_user_from_token()
+        user = get_user_from_token()
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
         
         conn = get_db_connection()
         if not conn:
@@ -220,16 +220,14 @@ def get_current_readings():
         
         cur = conn.cursor(cursor_factory=RealDictCursor)
         
-        if user and user['role'] == 'admin':
+        if user['role'] == 'admin':
             cur.execute("SELECT id FROM devices WHERE status = 'active' ORDER BY id LIMIT 1")
-        elif user:
+        else:
             cur.execute("""
                 SELECT id FROM devices 
                 WHERE organization_id = %s AND status = 'active' 
                 ORDER BY id LIMIT 1
             """, (user['organization_id'],))
-        else:
-            cur.execute("SELECT id FROM devices WHERE device_id = 'LEGACY-DEVICE-001'")
         
         device = cur.fetchone()
         
@@ -249,15 +247,16 @@ def get_current_readings():
 
 
 @sensors_bp.route('/devices/<int:device_id>/historical/<parameter>', methods=['GET'])
-@jwt_required(optional=True)
+@jwt_required()
 def get_device_historical(device_id, parameter):
     """Get historical data for specific device and parameter."""
     try:
-        current_user = get_jwt_identity()
-        if current_user:
-            user = get_user_from_token()
-            if user and user['role'] != 'admin' and not check_device_access(user['id'], device_id):
-                return jsonify({'error': 'Access denied'}), 403
+        user = get_user_from_token()
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+            
+        if user['role'] != 'admin' and not check_device_access(user['id'], device_id):
+            return jsonify({'error': 'Access denied'}), 403
         
         period = request.args.get('period', '24h')
         limit = int(request.args.get('limit', 100))
@@ -309,29 +308,26 @@ def get_device_historical(device_id, parameter):
 
 
 @sensors_bp.route('/historical/<parameter>', methods=['GET'])
-@jwt_required(optional=True)
+@jwt_required()
 def get_historical(parameter):
     """Legacy endpoint - redirects to first accessible device."""
-    user = None
-    current_user = get_jwt_identity()
-    if current_user:
-        user = get_user_from_token()
+    user = get_user_from_token()
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
     
     conn = get_db_connection()
     if not conn:
         return jsonify({'error': 'Database unavailable'}), 503
     
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    if user and user['role'] == 'admin':
+    if user['role'] == 'admin':
         cur.execute("SELECT id FROM devices WHERE status = 'active' ORDER BY id LIMIT 1")
-    elif user:
+    else:
         cur.execute("""
             SELECT id FROM devices 
             WHERE organization_id = %s AND status = 'active' 
             ORDER BY id LIMIT 1
         """, (user['organization_id'],))
-    else:
-        cur.execute("SELECT id FROM devices WHERE device_id = 'LEGACY-DEVICE-001'")
     
     device = cur.fetchone()
     cur.close()
