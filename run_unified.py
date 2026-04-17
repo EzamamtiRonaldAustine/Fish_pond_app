@@ -54,8 +54,8 @@ from dashboard.routes.control_views import control_views_bp
 
 app.register_blueprint(pages_bp)
 app.register_blueprint(dashboard_bp)
-app.register_blueprint(dash_devices_bp)
-app.register_blueprint(dash_users_bp)
+app.register_blueprint(dash_devices_bp, name='dash_devices')
+app.register_blueprint(dash_users_bp, name='dash_users')
 app.register_blueprint(proxy_bp)
 app.register_blueprint(ml_bp)
 app.register_blueprint(control_views_bp)
