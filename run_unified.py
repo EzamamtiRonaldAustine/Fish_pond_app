@@ -1,6 +1,4 @@
 # run_unified.py
-import eventlet
-eventlet.monkey_patch()
 import os
 from flask import Flask, jsonify
 from flask_socketio import SocketIO
@@ -22,7 +20,8 @@ app.config.from_object(DashboardConfig)
 # 2. Initialize Shared extensions
 jwt.init_app(app)
 cors.init_app(app, resources={r"/api/*": {"origins": "*"}})
-socketio.init_app(app, cors_allowed_origins="*", async_mode='eventlet')
+socketio.init_app(app, cors_allowed_origins="*", async_mode='threading')
+
 
 # 3. Register API Blueprints
 from api.routes.auth import auth_bp
