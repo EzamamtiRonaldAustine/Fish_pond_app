@@ -16,3 +16,5 @@ psycopg2-binary
 matplotlib>=3.7.0
 seaborn>=0.12.0
 google-auth
+eventlet>=0.33.3
+gunicorn>=20.1.0
